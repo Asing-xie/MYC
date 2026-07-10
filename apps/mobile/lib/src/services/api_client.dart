@@ -93,6 +93,10 @@ class ApiClient {
     return ChatMessage.fromJson(data);
   }
 
+  Future<void> markConversationRead(String conversationId) async {
+    await _post('/messages/$conversationId/read', {});
+  }
+
   Future<Map<String, dynamic>> uploadFile(String type, File file) async {
     final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/uploads/file?type=$type'));
     final accessToken = await token;

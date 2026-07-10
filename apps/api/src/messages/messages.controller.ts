@@ -23,4 +23,9 @@ export class MessagesController {
   send(@CurrentUser() user: AuthUser, @Body() dto: SendMessageDto) {
     return this.messagesService.send(user.id, dto);
   }
+
+  @Post(':conversationId/read')
+  markRead(@CurrentUser() user: AuthUser, @Param('conversationId') conversationId: string) {
+    return this.messagesService.markRead(user.id, conversationId);
+  }
 }

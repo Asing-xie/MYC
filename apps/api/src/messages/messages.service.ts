@@ -78,6 +78,28 @@ export class MessagesService {
     });
   }
 
+  async markRead(userId: string, conversationId: string) {
+    await this.assertMember(userId, conversationId);
+    const now = new Date();
+    await this.prisma.messageReceipt.updateMany({
+      where: {
+        userId,
+        readAt: null,
+        message: { conversationId, senderId: { not: userId } },
+      },
+      data: { readAt: now, deliveredAt: now },
+    });
+    return { ok: true };
+  }
+
+  async conversationMemberIds(conversationId: string) {
+    const members = await this.prisma.conversationMember.findMany({
+      where: { conversationId },
+      select: { userId: true },
+    });
+    return members.map((member) => member.userId);
+  }
+
   private async assertMember(userId: string, conversationId: string) {
     const member = await this.prisma.conversationMember.findUnique({
       where: { conversationId_userId: { conversationId, userId } },

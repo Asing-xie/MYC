@@ -52,8 +52,9 @@ export class ChatGateway implements OnGatewayConnection {
     }
 
     const message = await this.messagesService.send(client.user.id, dto);
-    this.server.to(dto.conversationId).emit('message:new', message);
-    this.server.to(`conversation:${dto.conversationId}`).emit('message:new', message);
+    const memberIds = await this.messagesService.conversationMemberIds(dto.conversationId);
+    const rooms = [`conversation:${dto.conversationId}`, ...memberIds.map((userId) => `user:${userId}`)];
+    this.server.to(rooms).emit('message:new', message);
     return message;
   }
 

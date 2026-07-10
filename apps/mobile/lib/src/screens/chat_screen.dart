@@ -56,6 +56,9 @@ class _ChatScreenState extends State<ChatScreen> {
           incoming: message,
         );
       });
+      if (message.senderId != widget.currentUser.id) {
+        _markRead();
+      }
     });
     _load();
   }
@@ -70,8 +73,17 @@ class _ChatScreenState extends State<ChatScreen> {
           ..addAll(messages);
         _loading = false;
       });
+      _markRead();
     } catch (_) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _markRead() async {
+    try {
+      await widget.api.markConversationRead(widget.conversation.id);
+    } catch (_) {
+      // Read state is best-effort and will be retried when the chat opens again.
     }
   }
 

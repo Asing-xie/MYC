@@ -8,7 +8,7 @@ describe('MessagesService', () => {
     conversationMember: { findUnique: jest.Mock; findMany: jest.Mock };
     conversation: { update: jest.Mock };
     message: { create: jest.Mock; findMany: jest.Mock; update: jest.Mock };
-    messageReceipt: { createMany: jest.Mock; upsert: jest.Mock };
+    messageReceipt: { createMany: jest.Mock; upsert: jest.Mock; updateMany: jest.Mock };
   };
 
   beforeEach(() => {
@@ -28,6 +28,7 @@ describe('MessagesService', () => {
       messageReceipt: {
         createMany: jest.fn(),
         upsert: jest.fn(),
+        updateMany: jest.fn(),
       },
     };
     service = new MessagesService(prisma as unknown as PrismaService);
@@ -92,5 +93,21 @@ describe('MessagesService', () => {
     prisma.messageReceipt.upsert.mockRejectedValue(new Error('missing'));
 
     await expect(service.markDelivered('u2', 'm1')).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('marks unread receipts in a conversation as read for the current user', async () => {
+    prisma.conversationMember.findUnique.mockResolvedValue({ conversationId: 'c1', userId: 'u2' });
+    prisma.messageReceipt.updateMany.mockResolvedValue({ count: 2 });
+
+    await service.markRead('u2', 'c1');
+
+    expect(prisma.messageReceipt.updateMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'u2',
+        readAt: null,
+        message: { conversationId: 'c1', senderId: { not: 'u2' } },
+      },
+      data: { readAt: expect.any(Date), deliveredAt: expect.any(Date) },
+    });
   });
 });

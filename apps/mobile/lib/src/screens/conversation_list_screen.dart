@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import '../models/chat_models.dart';
@@ -25,11 +26,21 @@ class ConversationListScreen extends StatefulWidget {
 
 class _ConversationListScreenState extends State<ConversationListScreen> {
   late Future<List<Conversation>> _future;
+  StreamSubscription<ChatMessage>? _messageSub;
 
   @override
   void initState() {
     super.initState();
     _future = widget.api.conversations();
+    _messageSub = widget.socket.messages.listen((_) {
+      if (mounted) _refresh();
+    });
+  }
+
+  @override
+  void dispose() {
+    _messageSub?.cancel();
+    super.dispose();
   }
 
   @override
@@ -95,16 +106,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   trailing: conversation.unread > 0 ? Badge(label: Text('${conversation.unread}')) : null,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => ChatScreen(
-                        api: widget.api,
-                        socket: widget.socket,
-                        currentUser: widget.currentUser,
-                        conversation: conversation,
-                      ),
-                    ),
-                  ),
+                  onTap: () => _openConversation(conversation),
                 );
               },
             );
@@ -144,6 +146,20 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
 
   void _refresh() {
     setState(() => _future = widget.api.conversations());
+  }
+
+  Future<void> _openConversation(Conversation conversation) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChatScreen(
+          api: widget.api,
+          socket: widget.socket,
+          currentUser: widget.currentUser,
+          conversation: conversation,
+        ),
+      ),
+    );
+    if (mounted) _refresh();
   }
 
   Future<void> _logout() async {

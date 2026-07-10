@@ -25,14 +25,16 @@ class ConversationListScreen extends StatefulWidget {
 }
 
 class _ConversationListScreenState extends State<ConversationListScreen> {
-  late Future<List<Conversation>> _future;
+  final List<Conversation> _conversations = [];
   StreamSubscription<ChatMessage>? _messageSub;
   int _friendRequestBadge = 0;
+  bool _initialLoading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _future = widget.api.conversations();
+    _loadConversations(showInitialLoading: true);
     _refreshFriendRequestBadge();
     _messageSub = widget.socket.messages.listen((_) {
       if (mounted) _refresh();
@@ -78,51 +80,51 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          setState(() {
-            _future = widget.api.conversations();
-          });
+          await _loadConversations();
           await _refreshFriendRequestBadge();
-          await _future;
         },
-        child: FutureBuilder<List<Conversation>>(
-          future: _future,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(child: CircularProgressIndicator());
-            }
-            if (snapshot.hasError) {
-              return Center(child: Text(snapshot.error.toString()));
-            }
-            final conversations = snapshot.data ?? [];
-            if (conversations.isEmpty) {
-              return ListView(
-                children: const [
-                  SizedBox(height: 160),
-                  Center(child: Text('No conversations yet')),
-                ],
-              );
-            }
-            return ListView.separated(
-              itemCount: conversations.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                final conversation = conversations[index];
-                final peer = conversation.peerFor(widget.currentUser.id);
-                return ListTile(
-                  title: Text(peer?.nickname ?? 'Chat'),
-                  subtitle: Text(
-                    conversation.latestPreview(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  trailing: conversation.unread > 0 ? Badge(label: Text('${conversation.unread}')) : null,
-                  onTap: () => _openConversation(conversation),
-                );
-              },
-            );
-          },
-        ),
+        child: _buildConversationList(),
       ),
+    );
+  }
+
+  Widget _buildConversationList() {
+    if (_initialLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null && _conversations.isEmpty) {
+      return ListView(
+        children: [
+          const SizedBox(height: 160),
+          Center(child: Text(_error!)),
+        ],
+      );
+    }
+    if (_conversations.isEmpty) {
+      return ListView(
+        children: const [
+          SizedBox(height: 160),
+          Center(child: Text('No conversations yet')),
+        ],
+      );
+    }
+    return ListView.separated(
+      itemCount: _conversations.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        final conversation = _conversations[index];
+        final peer = conversation.peerFor(widget.currentUser.id);
+        return ListTile(
+          title: Text(peer?.nickname ?? 'Chat'),
+          subtitle: Text(
+            conversation.latestPreview(),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          trailing: conversation.unread > 0 ? Badge(label: Text('${conversation.unread}')) : null,
+          onTap: () => _openConversation(conversation),
+        );
+      },
     );
   }
 
@@ -158,8 +160,46 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   }
 
   void _refresh() {
+    _loadConversations();
+  }
+
+  Future<void> _loadConversations({bool showInitialLoading = false}) async {
+    if (showInitialLoading && mounted) {
+      setState(() {
+        _initialLoading = true;
+        _error = null;
+      });
+    }
+    try {
+      final conversations = await widget.api.conversations();
+      if (!mounted) return;
+      setState(() {
+        _conversations
+          ..clear()
+          ..addAll(conversations);
+        _initialLoading = false;
+        _error = null;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _initialLoading = false;
+        _error = error.toString();
+      });
+    }
+  }
+
+  void _removeUnreadFor(String conversationId) {
     setState(() {
-      _future = widget.api.conversations();
+      final index = _conversations.indexWhere((conversation) => conversation.id == conversationId);
+      if (index == -1) return;
+      final current = _conversations[index];
+      _conversations[index] = Conversation(
+        id: current.id,
+        members: current.members,
+        latestMessage: current.latestMessage,
+        unread: 0,
+      );
     });
   }
 
@@ -196,7 +236,10 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     } catch (_) {
       // ChatScreen also marks messages read; keep the list refresh best-effort.
     }
-    if (mounted) _refresh();
+    if (mounted) {
+      _removeUnreadFor(conversation.id);
+      _refresh();
+    }
   }
 
   Future<void> _logout() async {

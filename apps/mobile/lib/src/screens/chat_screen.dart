@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import '../models/chat_models.dart';
+import '../services/app_language.dart';
 import '../services/api_client.dart';
 import '../services/message_merge.dart';
 import '../services/socket_service.dart';
@@ -119,6 +120,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLanguageScope.stringsOf(context);
     final peer = widget.conversation.peerFor(widget.currentUser.id);
     final title = widget.conversation.displayName(widget.currentUser.id);
     final avatarUrl = widget.conversation.displayAvatarUrl(widget.currentUser.id);
@@ -172,7 +174,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   SizedBox.square(
                     dimension: 42,
                     child: IconButton(
-                      tooltip: 'Image',
+                      tooltip: strings.image,
                       onPressed: _sending ? null : _sendImage,
                       icon: const Icon(Icons.image_outlined),
                     ),
@@ -180,7 +182,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   SizedBox.square(
                     dimension: 42,
                     child: IconButton(
-                      tooltip: _recording ? 'Stop voice' : 'Voice',
+                      tooltip: _recording ? strings.stopVoice : strings.voice,
                       onPressed: _sending ? null : _toggleVoice,
                       icon: Icon(_recording ? Icons.stop_circle_outlined : Icons.mic_none),
                     ),
@@ -189,7 +191,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: TextField(
                       controller: _text,
                       decoration: InputDecoration(
-                        hintText: _recording ? 'Recording...' : 'Message',
+                        hintText: _recording ? strings.recording : strings.message,
                         isDense: true,
                         filled: true,
                         border: OutlineInputBorder(
@@ -205,7 +207,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   SizedBox.square(
                     dimension: 42,
                     child: IconButton(
-                      tooltip: 'Send',
+                      tooltip: strings.send,
                       onPressed: _sending ? null : _sendText,
                       icon: _sending
                           ? const SizedBox.square(
@@ -225,6 +227,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _messageRow(ChatMessage message, bool mine) {
+    final strings = AppLanguageScope.stringsOf(context);
     final sender = _userFor(message.senderId);
     final avatar = GestureDetector(
       onTap: () => _openProfile(message.senderId),
@@ -258,7 +261,7 @@ class _ChatScreenState extends State<ChatScreen> {
               if (mine && !_pendingMessageIds.contains(message.id) && !_failedMessageIds.contains(message.id)) ...[
                 const SizedBox(width: 8),
                 Text(
-                  message.readByOthers ? '已读' : '已送达',
+                  message.readByOthers ? strings.read : strings.delivered,
                   style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
                 ),
               ],
@@ -268,7 +271,7 @@ class _ChatScreenState extends State<ChatScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                _failedMessageIds.contains(message.id) ? '发送失败' : '发送中...',
+                _failedMessageIds.contains(message.id) ? strings.sendFailed : strings.sending,
                 style: TextStyle(
                   color: _failedMessageIds.contains(message.id)
                       ? Theme.of(context).colorScheme.error
@@ -290,6 +293,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _messageBody(ChatMessage message) {
+    final strings = AppLanguageScope.stringsOf(context);
     if (message.type == 'IMAGE' && message.content != null) {
       return GestureDetector(
         onTap: () => _previewImage(message.content!),
@@ -300,7 +304,7 @@ class _ChatScreenState extends State<ChatScreen> {
             width: 220,
             height: 180,
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const Text('[image unavailable]'),
+            errorBuilder: (_, __, ___) => Text(strings.imageUnavailable),
           ),
         ),
       );
@@ -314,7 +318,7 @@ class _ChatScreenState extends State<ChatScreen> {
           children: [
             Icon(playing ? Icons.pause_circle_outline : Icons.play_circle_outline),
             const SizedBox(width: 8),
-            Text('语音 ${_formatDuration(message.durationMs)}'),
+            Text(strings.voiceMessage(_formatDuration(message.durationMs))),
           ],
         ),
       );
@@ -384,7 +388,7 @@ class _ChatScreenState extends State<ChatScreen> {
         _pendingMessageIds.remove(localId);
         _failedMessageIds.add(localId);
       });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('消息发送失败')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLanguageScope.stringsOf(context).messageSendFailed)));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -419,7 +423,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final allowed = await _recorder.hasPermission();
     if (!allowed) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Microphone permission denied')));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLanguageScope.stringsOf(context).micPermissionDenied)));
       return;
     }
 

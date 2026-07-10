@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/app_language.dart';
 import '../services/api_client.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -20,11 +21,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _loadingLanguage = true;
   bool _loggingOut = false;
 
-  static const _languages = [
-    _LanguageOption(code: 'zh-Hans', label: '中文'),
-    _LanguageOption(code: 'en', label: 'English'),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -33,28 +29,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final languageLabel = _languages
+    final strings = AppLanguageScope.stringsOf(context);
+    final languages = [
+      _LanguageOption(code: 'zh-Hans', label: strings.chinese),
+      _LanguageOption(code: 'en', label: strings.english),
+    ];
+    final languageLabel = languages
         .firstWhere(
           (language) => language.code == _languageCode,
-          orElse: () => _languages.first,
+          orElse: () => languages.first,
         )
         .label;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('设置')),
+      appBar: AppBar(title: Text(strings.settings)),
       body: ListView(
         children: [
           ListTile(
             leading: const Icon(Icons.language_outlined),
-            title: const Text('更换系统语言'),
-            subtitle: Text(_loadingLanguage ? '加载中...' : languageLabel),
+            title: Text(strings.changeLanguage),
+            subtitle: Text(_loadingLanguage ? strings.loading : languageLabel),
             trailing: const Icon(Icons.chevron_right),
             onTap: _loadingLanguage ? null : _chooseLanguage,
           ),
           const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.logout),
-            title: const Text('登出'),
+            title: Text(strings.logout),
             trailing: _loggingOut
                 ? const SizedBox.square(
                     dimension: 18,
@@ -78,6 +79,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _chooseLanguage() async {
+    final strings = AppLanguageScope.stringsOf(context);
+    final languageController = AppLanguageScope.controllerOf(context);
+    final languages = [
+      _LanguageOption(code: 'zh-Hans', label: strings.chinese),
+      _LanguageOption(code: 'en', label: strings.english),
+    ];
     final selected = await showModalBottomSheet<String>(
       context: context,
       showDragHandle: true,
@@ -85,7 +92,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (final language in _languages)
+            for (final language in languages)
               ListTile(
                 title: Text(language.label),
                 trailing: language.code == _languageCode ? const Icon(Icons.check) : null,
@@ -96,25 +103,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
     if (selected == null || selected == _languageCode) return;
-    await widget.api.setLanguageCode(selected);
+    await languageController.setCode(selected);
     if (!mounted) return;
     setState(() => _languageCode = selected);
   }
 
   Future<void> _confirmLogout() async {
+    final strings = AppLanguageScope.stringsOf(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('登出'),
-        content: const Text('确定要退出当前账号吗？'),
+        title: Text(strings.logout),
+        content: Text(strings.logoutConfirm),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('取消'),
+            child: Text(strings.cancel),
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('登出'),
+            child: Text(strings.logout),
           ),
         ],
       ),

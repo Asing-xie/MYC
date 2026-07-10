@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import '../models/chat_models.dart';
+import '../services/app_language.dart';
 import '../services/api_client.dart';
 import '../services/socket_service.dart';
 import 'chat_screen.dart';
@@ -53,6 +54,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLanguageScope.stringsOf(context);
     return Scaffold(
       appBar: _buildAppBar(),
       body: IndexedStack(
@@ -88,10 +90,10 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
           if (index == 1) await _refreshFriendRequestBadge();
         },
         destinations: [
-          const NavigationDestination(
-            icon: Icon(Icons.chat_bubble_outline),
-            selectedIcon: Icon(Icons.chat_bubble),
-            label: '消息',
+          NavigationDestination(
+            icon: const Icon(Icons.chat_bubble_outline),
+            selectedIcon: const Icon(Icons.chat_bubble),
+            label: strings.messages,
           ),
           NavigationDestination(
             icon: _friendRequestBadge > 0
@@ -100,17 +102,17 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
             selectedIcon: _friendRequestBadge > 0
                 ? Badge(label: Text('$_friendRequestBadge'), child: const Icon(Icons.contacts))
                 : const Icon(Icons.contacts),
-            label: '通讯录',
+            label: strings.contacts,
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.explore_outlined),
-            selectedIcon: Icon(Icons.explore),
-            label: '发现',
+          NavigationDestination(
+            icon: const Icon(Icons.explore_outlined),
+            selectedIcon: const Icon(Icons.explore),
+            label: strings.discover,
           ),
-          const NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: '我',
+          NavigationDestination(
+            icon: const Icon(Icons.person_outline),
+            selectedIcon: const Icon(Icons.person),
+            label: strings.me,
           ),
         ],
       ),
@@ -118,17 +120,18 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   }
 
   PreferredSizeWidget _buildAppBar() {
+    final strings = AppLanguageScope.stringsOf(context);
     switch (_tabIndex) {
       case 1:
-        return AppBar(title: const Text('通讯录'));
+        return AppBar(title: Text(strings.contacts));
       case 2:
-        return AppBar(title: const Text('发现'));
+        return AppBar(title: Text(strings.discover));
       case 3:
         return AppBar(
-          title: const Text('我'),
+          title: Text(strings.me),
           actions: [
             IconButton(
-              tooltip: 'Settings',
+              tooltip: strings.settings,
               onPressed: _openSettings,
               icon: const Icon(Icons.settings_outlined),
             ),
@@ -136,15 +139,15 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
         );
       default:
         return AppBar(
-          title: const Text('消息'),
+          title: Text(strings.messages),
           actions: [
             IconButton(
-              tooltip: 'Search users',
+              tooltip: strings.searchUsers,
               onPressed: _openSearch,
               icon: const Icon(Icons.person_add_alt_1),
             ),
             IconButton(
-              tooltip: 'New group',
+              tooltip: strings.newGroup,
               onPressed: _openCreateGroup,
               icon: const Icon(Icons.group_add_outlined),
             ),
@@ -154,6 +157,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   }
 
   Widget _buildConversationList() {
+    final strings = AppLanguageScope.stringsOf(context);
     if (_initialLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -167,9 +171,9 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     }
     if (_conversations.isEmpty) {
       return ListView(
-        children: const [
-          SizedBox(height: 160),
-          Center(child: Text('No conversations yet')),
+        children: [
+          const SizedBox(height: 160),
+          Center(child: Text(strings.noConversations)),
         ],
       );
     }
@@ -189,7 +193,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
           ),
           title: Text(title),
           subtitle: Text(
-            conversation.latestPreview(),
+            conversation.latestPreview(strings),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -351,8 +355,9 @@ class _DiscoverTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Text('发现'),
+    final strings = AppLanguageScope.stringsOf(context);
+    return Center(
+      child: Text(strings.discover),
     );
   }
 }

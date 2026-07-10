@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/chat_models.dart';
+import '../services/app_language.dart';
 import '../services/api_client.dart';
 
 class CreateGroupScreen extends StatefulWidget {
@@ -36,9 +37,10 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLanguageScope.stringsOf(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Group'),
+        title: Text(strings.newGroup),
         actions: [
           TextButton(
             onPressed: _selectedIds.length < 2 || _creating ? null : _create,
@@ -47,7 +49,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                     dimension: 18,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Text('Create'),
+                : Text(strings.create),
           ),
         ],
       ),
@@ -62,7 +64,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
             return Center(child: Text(snapshot.error.toString()));
           }
           if (contacts.length < 2) {
-            return const Center(child: Text('At least two friends are required'));
+            return Center(child: Text(strings.atLeastTwoFriends));
           }
 
           return Column(
@@ -71,9 +73,9 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
                 child: TextField(
                   controller: _title,
-                  decoration: const InputDecoration(
-                    labelText: 'Group name',
-                    border: OutlineInputBorder(),
+                  decoration: InputDecoration(
+                    labelText: strings.groupName,
+                    border: const OutlineInputBorder(),
                   ),
                 ),
               ),
@@ -81,7 +83,7 @@ class _CreateGroupScreenState extends State<CreateGroupScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                 child: Align(
                   alignment: Alignment.centerLeft,
-                  child: Text('Selected ${_selectedIds.length}/$contacts.length'),
+                  child: Text(strings.selectedCount(_selectedIds.length, contacts.length)),
                 ),
               ),
               Expanded(

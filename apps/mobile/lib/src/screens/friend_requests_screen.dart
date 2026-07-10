@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/chat_models.dart';
+import '../services/app_language.dart';
 import '../services/api_client.dart';
 
 class FriendRequestsScreen extends StatefulWidget {
@@ -28,8 +29,9 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLanguageScope.stringsOf(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('New Friends')),
+      appBar: AppBar(title: Text(strings.newFriends)),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: FutureBuilder<_RequestsData>(
@@ -49,17 +51,17 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
             final data = snapshot.data ?? _RequestsData.empty();
             if (data.incoming.isEmpty && data.outgoing.isEmpty) {
               return ListView(
-                children: const [
-                  SizedBox(height: 120),
-                  Center(child: Text('No friend requests')),
+                children: [
+                  const SizedBox(height: 120),
+                  Center(child: Text(strings.noFriendRequests)),
                 ],
               );
             }
             return ListView(
               children: [
-                if (data.incoming.isNotEmpty) _sectionTitle('Incoming'),
+                if (data.incoming.isNotEmpty) _sectionTitle(strings.incomingRequests),
                 ...data.incoming.map(_incomingTile),
-                if (data.outgoing.isNotEmpty) _sectionTitle('Sent'),
+                if (data.outgoing.isNotEmpty) _sectionTitle(strings.outgoingRequests),
                 ...data.outgoing.map(_outgoingTile),
               ],
             );
@@ -77,6 +79,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
   }
 
   Widget _incomingTile(ContactRelation request) {
+    final strings = AppLanguageScope.stringsOf(context);
     final user = request.requester;
     final busy = _busyIds.contains(request.id);
     return ListTile(
@@ -88,11 +91,11 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
         children: [
           OutlinedButton(
             onPressed: busy ? null : () => _reject(request),
-            child: const Text('Reject'),
+            child: Text(strings.reject),
           ),
           FilledButton(
             onPressed: busy ? null : () => _accept(request),
-            child: const Text('Accept'),
+            child: Text(strings.accept),
           ),
         ],
       ),
@@ -100,12 +103,13 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
   }
 
   Widget _outgoingTile(ContactRelation request) {
+    final strings = AppLanguageScope.stringsOf(context);
     final user = request.addressee;
     return ListTile(
       leading: _avatar(user),
       title: Text(user.nickname),
       subtitle: Text(user.email ?? user.phone ?? user.id),
-      trailing: const Text('Pending'),
+      trailing: Text(strings.pending),
     );
   }
 
@@ -130,11 +134,19 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
   }
 
   Future<void> _accept(ContactRelation request) async {
-    await _runRequestAction(request.id, () => widget.api.acceptContactRequest(request.id), 'Accepted');
+    await _runRequestAction(
+      request.id,
+      () => widget.api.acceptContactRequest(request.id),
+      AppLanguageScope.stringsOf(context).accepted,
+    );
   }
 
   Future<void> _reject(ContactRelation request) async {
-    await _runRequestAction(request.id, () => widget.api.rejectContactRequest(request.id), 'Rejected');
+    await _runRequestAction(
+      request.id,
+      () => widget.api.rejectContactRequest(request.id),
+      AppLanguageScope.stringsOf(context).rejected,
+    );
   }
 
   Future<void> _runRequestAction(String id, Future<void> Function() action, String message) async {

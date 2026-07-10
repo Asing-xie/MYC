@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/chat_models.dart';
+import '../services/app_language.dart';
 import '../services/api_client.dart';
 import '../services/socket_service.dart';
 import 'chat_screen.dart';
@@ -37,6 +38,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLanguageScope.stringsOf(context);
     final body = RefreshIndicator(
       onRefresh: _refresh,
       child: FutureBuilder<List<ContactRelation>>(
@@ -50,8 +52,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
               if (index == 0) {
                 return ListTile(
                   leading: const CircleAvatar(child: Icon(Icons.person_add_alt_1)),
-                  title: const Text('New Friends'),
-                  subtitle: const Text('Friend requests'),
+                  title: Text(strings.newFriends),
+                  subtitle: Text(strings.friendRequests),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -100,7 +102,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
     if (widget.embedded) return body;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Contacts')),
+      appBar: AppBar(title: Text(strings.contacts)),
       body: body,
     );
   }

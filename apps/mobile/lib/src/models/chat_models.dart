@@ -1,3 +1,5 @@
+import '../services/app_strings.dart';
+
 class ChatUser {
   ChatUser({
     required this.id,
@@ -114,10 +116,10 @@ class Conversation {
     return peerFor(currentUserId)?.avatarUrl;
   }
 
-  String latestPreview() {
+  String latestPreview(AppStrings strings) {
     final message = latestMessage;
-    if (message == null) return 'No messages yet';
-    return message.previewText();
+    if (message == null) return strings.noMessagesYet;
+    return message.previewText(strings);
   }
 }
 
@@ -213,9 +215,9 @@ class ChatMessage {
     );
   }
 
-  String previewText() {
-    if (type == 'IMAGE') return '[图片]';
-    if (type == 'VOICE') return '[语音]';
+  String previewText(AppStrings strings) {
+    if (type == 'IMAGE') return strings.imagePreview;
+    if (type == 'VOICE') return strings.voicePreview;
     return content ?? '';
   }
 

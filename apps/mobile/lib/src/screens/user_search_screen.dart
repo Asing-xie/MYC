@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/chat_models.dart';
+import '../services/app_language.dart';
 import '../services/api_client.dart';
 import '../services/socket_service.dart';
 import 'chat_screen.dart';
@@ -41,8 +42,9 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLanguageScope.stringsOf(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Search users')),
+      appBar: AppBar(title: Text(strings.searchUsers)),
       body: SafeArea(
         child: Column(
           children: [
@@ -51,18 +53,18 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
               child: TextField(
                 controller: _query,
                 decoration: InputDecoration(
-                  labelText: 'Email, phone, or nickname',
+                  labelText: strings.searchFieldLabel,
                   suffixIcon: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       if (_query.text.isNotEmpty)
                         IconButton(
-                          tooltip: 'Clear',
+                          tooltip: strings.clear,
                           onPressed: _clear,
                           icon: const Icon(Icons.clear),
                         ),
                       IconButton(
-                        tooltip: 'Search',
+                        tooltip: strings.search,
                         onPressed: _search,
                         icon: const Icon(Icons.search),
                       ),
@@ -90,11 +92,12 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
   }
 
   Widget _buildResults() {
+    final strings = AppLanguageScope.stringsOf(context);
     if (!_searched && _users.isEmpty) {
-      return const Center(child: Text('Search by email, phone, or nickname'));
+      return Center(child: Text(strings.searchHint));
     }
     if (_searched && !_loading && _users.isEmpty) {
-      return const Center(child: Text('No users found'));
+      return Center(child: Text(strings.noUsersFound));
     }
     return ListView.separated(
       itemCount: _users.length,
@@ -114,7 +117,7 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
           title: Text(user.nickname),
           subtitle: Text(user.email ?? user.phone ?? user.id),
           trailing: IconButton(
-            tooltip: requested ? 'Request sent' : 'Add friend',
+            tooltip: requested ? strings.requestSent : strings.addFriend,
             onPressed: busy || requested ? null : () => _addOrChat(user),
             icon: busy
                 ? const SizedBox.square(
@@ -188,7 +191,8 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
       } else {
         final relation = await widget.api.sendContactRequest(user.id);
         if (!mounted) return;
-        final message = relation.status == 'ACCEPTED' ? 'Already friends' : 'Friend request sent';
+        final strings = AppLanguageScope.stringsOf(context);
+        final message = relation.status == 'ACCEPTED' ? strings.alreadyFriends : strings.friendRequestSent;
         setState(() {
           _requestedUserIds.add(user.id);
         });

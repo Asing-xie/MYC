@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/chat_models.dart';
+import '../services/app_language.dart';
 import '../services/api_client.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -40,6 +41,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLanguageScope.stringsOf(context);
     final profile = _profile;
     final body = _loading
         ? const Center(child: CircularProgressIndicator())
@@ -55,15 +57,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 if (profile != null) _profileHeader(profile),
                 const SizedBox(height: 24),
-                _sectionTitle('Album'),
+                _sectionTitle(strings.album),
                 const SizedBox(height: 10),
                 if (_isMe)
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: OutlinedButton.icon(
-                      onPressed: _saving ? null : _addAlbumImage,
-                      icon: const Icon(Icons.add_photo_alternate_outlined),
-                      label: const Text('Add Photo'),
+                      child: OutlinedButton.icon(
+                        onPressed: _saving ? null : _addAlbumImage,
+                        icon: const Icon(Icons.add_photo_alternate_outlined),
+                        label: Text(strings.addPhoto),
                     ),
                   ),
                 const SizedBox(height: 12),
@@ -74,12 +76,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (widget.embedded) return body;
 
     return Scaffold(
-      appBar: AppBar(title: Text(_isMe ? 'My Profile' : 'Profile')),
+      appBar: AppBar(title: Text(_isMe ? strings.myProfile : strings.profile)),
       body: body,
     );
   }
 
   Widget _profileHeader(ChatUser user) {
+    final strings = AppLanguageScope.stringsOf(context);
     final subtitle = user.email ?? user.phone ?? user.id;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -104,7 +107,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   if (_isMe)
                     IconButton(
-                      tooltip: 'Edit profile',
+                      tooltip: strings.editProfile,
                       onPressed: _saving ? null : _editProfile,
                       icon: const Icon(Icons.edit_outlined),
                     ),
@@ -114,14 +117,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 12),
               Text(
-                (user.signature?.trim().isNotEmpty ?? false) ? user.signature!.trim() : 'No signature',
+                (user.signature?.trim().isNotEmpty ?? false) ? user.signature!.trim() : strings.noSignature,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               if (_isMe)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
                   child: Text(
-                    'Tap avatar to update',
+                    strings.tapAvatarToUpdate,
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ),
@@ -137,10 +140,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _albumGrid() {
+    final strings = AppLanguageScope.stringsOf(context);
     if (_photos.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 28),
-        child: Center(child: Text(_isMe ? 'No photos yet' : 'No public photos')),
+        child: Center(child: Text(_isMe ? strings.noPhotosYet : strings.noPublicPhotos)),
       );
     }
     return GridView.builder(
@@ -214,6 +218,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _editProfile() async {
+    final strings = AppLanguageScope.stringsOf(context);
     final profile = _profile;
     if (profile == null) return;
     final nickname = TextEditingController(text: profile.nickname);
@@ -221,30 +226,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final result = await showDialog<({String nickname, String signature})>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Edit Profile'),
+        title: Text(strings.editProfile),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
               controller: nickname,
-              decoration: const InputDecoration(labelText: 'Nickname'),
+              decoration: InputDecoration(labelText: strings.nickname),
               textInputAction: TextInputAction.next,
             ),
             TextField(
               controller: signature,
-              decoration: const InputDecoration(labelText: 'Signature'),
+              decoration: InputDecoration(labelText: strings.signature),
               maxLines: 3,
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(strings.cancel)),
           FilledButton(
             onPressed: () => Navigator.of(context).pop((
               nickname: nickname.text.trim(),
               signature: signature.text.trim(),
             )),
-            child: const Text('Save'),
+            child: Text(strings.save),
           ),
         ],
       ),

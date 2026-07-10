@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/chat_models.dart';
+import '../services/app_language.dart';
 import '../services/api_client.dart';
 import '../services/socket_service.dart';
 import 'conversation_list_screen.dart';
@@ -24,17 +25,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final _identity = TextEditingController();
   final _password = TextEditingController();
   final _nickname = TextEditingController();
-  String _languageCode = 'zh-Hans';
   bool _register = false;
   bool _loading = false;
   bool _checkingSession = true;
 
-  bool get _english => _languageCode == 'en';
-
   @override
   void initState() {
     super.initState();
-    _loadLanguage();
     if (widget.restoreSession) {
       _restoreSession();
     } else {
@@ -52,6 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = AppLanguageScope.stringsOf(context);
+    final language = AppLanguageScope.controllerOf(context);
     if (_checkingSession) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
@@ -60,12 +59,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('MWC Chat'),
+        title: Text(strings.appName),
         actions: [
           TextButton.icon(
-            onPressed: _toggleLanguage,
+            onPressed: language.toggle,
             icon: const Icon(Icons.language_outlined),
-            label: Text(_english ? '中文' : 'EN'),
+            label: Text(strings.languageToggle),
           ),
         ],
       ),
@@ -75,52 +74,35 @@ class _LoginScreenState extends State<LoginScreen> {
           children: [
             TextField(
               controller: _identity,
-              decoration: InputDecoration(labelText: _english ? 'Email or phone' : '邮箱或手机号'),
+              decoration: InputDecoration(labelText: strings.emailOrPhone),
               keyboardType: TextInputType.emailAddress,
             ),
             const SizedBox(height: 12),
             TextField(
               controller: _password,
-              decoration: InputDecoration(labelText: _english ? 'Password' : '密码'),
+              decoration: InputDecoration(labelText: strings.password),
               obscureText: true,
             ),
             if (_register) ...[
               const SizedBox(height: 12),
               TextField(
                 controller: _nickname,
-                decoration: InputDecoration(labelText: _english ? 'Nickname' : '昵称'),
+                decoration: InputDecoration(labelText: strings.nickname),
               ),
             ],
             const SizedBox(height: 20),
             FilledButton(
               onPressed: _loading ? null : _submit,
-              child: Text(_register ? (_english ? 'Register' : '注册') : (_english ? 'Login' : '登录')),
+              child: Text(_register ? strings.register : strings.login),
             ),
             TextButton(
               onPressed: _loading ? null : () => setState(() => _register = !_register),
-              child: Text(
-                _register
-                    ? (_english ? 'Use existing account' : '已有账号，去登录')
-                    : (_english ? 'Create account' : '创建账号'),
-              ),
+              child: Text(_register ? strings.useExistingAccount : strings.createAccount),
             ),
           ],
         ),
       ),
     );
-  }
-
-  Future<void> _loadLanguage() async {
-    final code = await widget.api.languageCode();
-    if (!mounted) return;
-    setState(() => _languageCode = code == 'en' ? 'en' : 'zh-Hans');
-  }
-
-  Future<void> _toggleLanguage() async {
-    final next = _english ? 'zh-Hans' : 'en';
-    await widget.api.setLanguageCode(next);
-    if (!mounted) return;
-    setState(() => _languageCode = next);
   }
 
   Future<void> _submit() async {

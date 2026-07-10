@@ -122,6 +122,17 @@ class ApiClient {
     return Conversation.fromJson(data);
   }
 
+  Future<Conversation> createGroupConversation({
+    required String title,
+    required List<String> memberIds,
+  }) async {
+    final data = await _post('/conversations/group', {
+      'title': title,
+      'memberIds': memberIds,
+    });
+    return Conversation.fromJson(data);
+  }
+
   Future<List<Conversation>> conversations() async {
     final data = await _get('/conversations') as List<dynamic>;
     return data.map((item) => Conversation.fromJson(item as Map<String, dynamic>)).toList();
@@ -132,11 +143,12 @@ class ApiClient {
     return data.map((item) => ChatMessage.fromJson(item as Map<String, dynamic>)).toList().reversed.toList();
   }
 
-  Future<ChatMessage> sendMessage(String conversationId, String type, String? content) async {
+  Future<ChatMessage> sendMessage(String conversationId, String type, String? content, {int? durationMs}) async {
     final data = await _post('/messages', {
       'conversationId': conversationId,
       'type': type,
       'content': content,
+      if (durationMs != null) 'durationMs': durationMs,
     });
     return ChatMessage.fromJson(data);
   }

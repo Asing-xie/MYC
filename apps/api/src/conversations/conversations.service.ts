@@ -1,9 +1,20 @@
 import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateGroupConversationDto } from './dto/create-group-conversation.dto';
 
 @Injectable()
 export class ConversationsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  private readonly userSelect = {
+    id: true,
+    nickname: true,
+    avatarUrl: true,
+    email: true,
+    phone: true,
+    signature: true,
+    role: true,
+  } as const;
 
   async createDirect(currentUserId: string, otherUserId: string) {
     if (currentUserId === otherUserId) {
@@ -35,7 +46,7 @@ export class ConversationsService {
       include: {
         members: {
           include: {
-            user: { select: { id: true, nickname: true, avatarUrl: true, email: true, phone: true } },
+            user: { select: this.userSelect },
           },
         },
       },
@@ -55,7 +66,62 @@ export class ConversationsService {
       include: {
         members: {
           include: {
-            user: { select: { id: true, nickname: true, avatarUrl: true, email: true, phone: true } },
+            user: { select: this.userSelect },
+          },
+        },
+      },
+    });
+  }
+
+  async createGroup(currentUserId: string, dto: CreateGroupConversationDto) {
+    const memberIds = [...new Set(dto.memberIds.filter((id) => id !== currentUserId))];
+    if (memberIds.length < 2) {
+      throw new BadRequestException('Group chat requires at least two other members');
+    }
+
+    if (!(await this.isGmUser(currentUserId))) {
+      const acceptedContacts = await this.prisma.contact.findMany({
+        where: {
+          status: 'ACCEPTED',
+          OR: memberIds.flatMap((memberId) => [
+            { requesterId: currentUserId, addresseeId: memberId },
+            { requesterId: memberId, addresseeId: currentUserId },
+          ]),
+        },
+        select: { requesterId: true, addresseeId: true },
+      });
+      const acceptedMemberIds = new Set(
+        acceptedContacts.map((contact) =>
+          contact.requesterId === currentUserId ? contact.addresseeId : contact.requesterId,
+        ),
+      );
+      const missing = memberIds.filter((memberId) => !acceptedMemberIds.has(memberId));
+      if (missing.length > 0) {
+        throw new ForbiddenException('Group members must be your friends');
+      }
+    }
+
+    const users = await this.prisma.user.findMany({
+      where: { id: { in: [currentUserId, ...memberIds] } },
+      select: this.userSelect,
+    });
+    if (users.length !== memberIds.length + 1) {
+      throw new BadRequestException('Some group members do not exist');
+    }
+
+    const title = dto.title?.trim() || users.map((user) => user.nickname).slice(0, 4).join(', ');
+    return this.prisma.conversation.create({
+      data: {
+        type: 'GROUP',
+        title,
+        members: {
+          create: [currentUserId, ...memberIds].map((userId) => ({ userId })),
+        },
+      },
+      include: {
+        members: {
+          include: {
+            user: { select: this.userSelect },
           },
         },
       },
@@ -68,13 +134,13 @@ export class ConversationsService {
       include: {
         members: {
           include: {
-            user: { select: { id: true, nickname: true, avatarUrl: true, email: true, phone: true } },
+            user: { select: this.userSelect },
           },
         },
         messages: {
           orderBy: { createdAt: 'desc' },
           take: 1,
-          include: { attachments: true },
+          include: { attachments: true, receipts: true },
         },
       },
       orderBy: { updatedAt: 'desc' },
@@ -92,7 +158,9 @@ export class ConversationsService {
 
         return {
           ...conversation,
-          latestMessage: conversation.messages[0] ?? null,
+          latestMessage: conversation.messages[0]
+            ? this.withReadState(conversation.messages[0], userId)
+            : null,
           unread,
           messages: undefined,
         };
@@ -117,5 +185,15 @@ export class ConversationsService {
     const email = user.email?.toLowerCase();
     const phone = user.phone?.toLowerCase();
     return Boolean((email && identities.includes(email)) || (phone && identities.includes(phone)));
+  }
+
+  private withReadState<T extends { senderId: string; receipts?: { readAt: Date | null }[] }>(
+    message: T,
+    userId: string,
+  ) {
+    return {
+      ...message,
+      readByOthers: message.senderId === userId && (message.receipts ?? []).some((receipt) => receipt.readAt),
+    };
   }
 }

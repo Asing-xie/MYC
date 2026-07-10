@@ -15,6 +15,7 @@ enum ContactStatus {
 
 enum ConversationType {
   DIRECT
+  GROUP
 }
 
 enum MessageType {
@@ -83,6 +84,8 @@ model Contact {
 model Conversation {
   id        String           @id @default(cuid())
   type      ConversationType @default(DIRECT)
+  title     String?
+  avatarUrl String?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
@@ -109,6 +112,7 @@ model Message {
   senderId       String
   type           MessageType
   content        String?
+  durationMs     Int?
   status         MessageStatus @default(SENT)
   createdAt      DateTime      @default(now())
 

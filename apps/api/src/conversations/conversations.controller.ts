@@ -4,6 +4,7 @@ import { CurrentUser } from '../common/current-user.decorator';
 import type { AuthUser } from '../common/current-user.decorator';
 import { ConversationsService } from './conversations.service';
 import { CreateDirectConversationDto } from './dto/create-direct-conversation.dto';
+import { CreateGroupConversationDto } from './dto/create-group-conversation.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('conversations')
@@ -13,6 +14,11 @@ export class ConversationsController {
   @Post('direct')
   createDirect(@CurrentUser() user: AuthUser, @Body() dto: CreateDirectConversationDto) {
     return this.conversationsService.createDirect(user.id, dto.userId);
+  }
+
+  @Post('group')
+  createGroup(@CurrentUser() user: AuthUser, @Body() dto: CreateGroupConversationDto) {
+    return this.conversationsService.createGroup(user.id, dto);
   }
 
   @Get()

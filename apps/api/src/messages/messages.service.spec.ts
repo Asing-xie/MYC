@@ -5,10 +5,10 @@ import { PrismaService } from '../prisma/prisma.service';
 describe('MessagesService', () => {
   let service: MessagesService;
   let prisma: {
-    conversationMember: { findUnique: jest.Mock; findMany: jest.Mock };
+    conversationMember: { findUnique: jest.Mock; findMany: jest.Mock; update: jest.Mock };
     conversation: { update: jest.Mock };
     message: { create: jest.Mock; findMany: jest.Mock; update: jest.Mock };
-    messageReceipt: { createMany: jest.Mock; upsert: jest.Mock; updateMany: jest.Mock };
+    messageReceipt: { createMany: jest.Mock; findMany: jest.Mock; upsert: jest.Mock; updateMany: jest.Mock };
   };
 
   beforeEach(() => {
@@ -16,6 +16,7 @@ describe('MessagesService', () => {
       conversationMember: {
         findUnique: jest.fn(),
         findMany: jest.fn(),
+        update: jest.fn(),
       },
       conversation: {
         update: jest.fn(),
@@ -27,6 +28,7 @@ describe('MessagesService', () => {
       },
       messageReceipt: {
         createMany: jest.fn(),
+        findMany: jest.fn(),
         upsert: jest.fn(),
         updateMany: jest.fn(),
       },
@@ -97,10 +99,20 @@ describe('MessagesService', () => {
 
   it('marks unread receipts in a conversation as read for the current user', async () => {
     prisma.conversationMember.findUnique.mockResolvedValue({ conversationId: 'c1', userId: 'u2' });
+    prisma.messageReceipt.findMany.mockResolvedValue([{ messageId: 'm1' }, { messageId: 'm2' }]);
     prisma.messageReceipt.updateMany.mockResolvedValue({ count: 2 });
+    prisma.conversationMember.update.mockResolvedValue({ conversationId: 'c1', userId: 'u2' });
 
-    await service.markRead('u2', 'c1');
+    const result = await service.markRead('u2', 'c1');
 
+    expect(prisma.messageReceipt.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'u2',
+        readAt: null,
+        message: { conversationId: 'c1', senderId: { not: 'u2' } },
+      },
+      select: { messageId: true },
+    });
     expect(prisma.messageReceipt.updateMany).toHaveBeenCalledWith({
       where: {
         userId: 'u2',
@@ -109,5 +121,10 @@ describe('MessagesService', () => {
       },
       data: { readAt: expect.any(Date), deliveredAt: expect.any(Date) },
     });
+    expect(prisma.conversationMember.update).toHaveBeenCalledWith({
+      where: { conversationId_userId: { conversationId: 'c1', userId: 'u2' } },
+      data: { lastReadAt: expect.any(Date) },
+    });
+    expect(result.messageIds).toEqual(['m1', 'm2']);
   });
 });

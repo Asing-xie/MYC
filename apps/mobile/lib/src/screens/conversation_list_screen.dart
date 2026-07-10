@@ -6,6 +6,7 @@ import '../services/api_client.dart';
 import '../services/socket_service.dart';
 import 'chat_screen.dart';
 import 'contacts_screen.dart';
+import 'create_group_screen.dart';
 import 'profile_screen.dart';
 import 'user_search_screen.dart';
 
@@ -58,6 +59,11 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
             tooltip: 'Search users',
             onPressed: _openSearch,
             icon: const Icon(Icons.person_add_alt_1),
+          ),
+          IconButton(
+            tooltip: 'New group',
+            onPressed: _openCreateGroup,
+            icon: const Icon(Icons.group_add_outlined),
           ),
           TextButton.icon(
             onPressed: _openContacts,
@@ -116,9 +122,16 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final conversation = _conversations[index];
-        final peer = conversation.peerFor(widget.currentUser.id);
+        final title = conversation.displayName(widget.currentUser.id);
+        final avatarUrl = conversation.displayAvatarUrl(widget.currentUser.id);
         return ListTile(
-          title: Text(peer?.nickname ?? 'Chat'),
+          leading: CircleAvatar(
+            backgroundImage: avatarUrl == null ? null : NetworkImage(avatarUrl),
+            child: avatarUrl == null
+                ? Icon(conversation.isGroup ? Icons.groups_outlined : Icons.person_outline)
+                : null,
+          ),
+          title: Text(title),
           subtitle: Text(
             conversation.latestPreview(),
             maxLines: 1,
@@ -162,6 +175,21 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     }
   }
 
+  Future<void> _openCreateGroup() async {
+    final conversation = await Navigator.of(context).push<Conversation>(
+      MaterialPageRoute(
+        builder: (_) => CreateGroupScreen(
+          api: widget.api,
+          currentUser: widget.currentUser,
+        ),
+      ),
+    );
+    if (conversation != null && mounted) {
+      _refresh();
+      await _openConversation(conversation);
+    }
+  }
+
   void _refresh() {
     _loadConversations();
   }
@@ -199,6 +227,9 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
       final current = _conversations[index];
       _conversations[index] = Conversation(
         id: current.id,
+        type: current.type,
+        title: current.title,
+        avatarUrl: current.avatarUrl,
         members: current.members,
         latestMessage: current.latestMessage,
         unread: 0,

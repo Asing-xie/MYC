@@ -5,8 +5,8 @@ import { PrismaService } from '../prisma/prisma.service';
 describe('ConversationsService', () => {
   let service: ConversationsService;
   let prisma: {
-    user: { findUnique: jest.Mock };
-    contact: { findFirst: jest.Mock };
+    user: { findMany: jest.Mock; findUnique: jest.Mock };
+    contact: { findFirst: jest.Mock; findMany: jest.Mock };
     conversation: { findFirst: jest.Mock; create: jest.Mock; findMany: jest.Mock };
     messageReceipt: { count: jest.Mock };
   };
@@ -15,10 +15,12 @@ describe('ConversationsService', () => {
     delete process.env.GM_IDENTITIES;
     prisma = {
       user: {
+        findMany: jest.fn(),
         findUnique: jest.fn(),
       },
       contact: {
         findFirst: jest.fn(),
+        findMany: jest.fn(),
       },
       conversation: {
         findFirst: jest.fn(),
@@ -100,5 +102,39 @@ describe('ConversationsService', () => {
 
     expect(conversation.id).toBe('conversation-role-gm');
     expect(prisma.conversation.create).toHaveBeenCalled();
+  });
+
+  it('creates a group conversation with accepted contacts', async () => {
+    prisma.user.findUnique.mockResolvedValue({ id: 'u1', email: 'u1@example.com', phone: null, role: 'USER' });
+    prisma.contact.findMany.mockResolvedValue([
+      { requesterId: 'u1', addresseeId: 'u2' },
+      { requesterId: 'u3', addresseeId: 'u1' },
+    ]);
+    prisma.user.findMany.mockResolvedValue([
+      { id: 'u1', nickname: 'A' },
+      { id: 'u2', nickname: 'B' },
+      { id: 'u3', nickname: 'C' },
+    ]);
+    prisma.conversation.create.mockResolvedValue({
+      id: 'group-1',
+      type: 'GROUP',
+      title: 'Friends',
+      members: [{ userId: 'u1' }, { userId: 'u2' }, { userId: 'u3' }],
+    });
+
+    const conversation = await service.createGroup('u1', {
+      title: 'Friends',
+      memberIds: ['u2', 'u3'],
+    });
+
+    expect(conversation.id).toBe('group-1');
+    expect(prisma.conversation.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          type: 'GROUP',
+          title: 'Friends',
+        }),
+      }),
+    );
   });
 });

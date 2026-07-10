@@ -64,6 +64,18 @@ export class ChatGateway implements OnGatewayConnection {
     return { ok: true };
   }
 
+  @SubscribeMessage('conversation:read')
+  async readConversation(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: { conversationId: string }) {
+    if (!client.user) {
+      client.disconnect();
+      return;
+    }
+
+    const result = await this.messagesService.markRead(client.user.id, body.conversationId);
+    this.server.to(`conversation:${body.conversationId}`).emit('message:read', result);
+    return result;
+  }
+
   @SubscribeMessage('message:delivered')
   async delivered(@ConnectedSocket() client: AuthedSocket, @MessageBody() body: { messageId: string }) {
     if (!client.user) {

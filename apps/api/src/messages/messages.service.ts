@@ -8,12 +8,13 @@ export class MessagesService {
 
   async list(userId: string, conversationId: string, take = 50) {
     await this.assertMember(userId, conversationId);
-    return this.prisma.message.findMany({
+    const messages = await this.prisma.message.findMany({
       where: { conversationId },
-      include: { attachments: true },
+      include: { attachments: true, receipts: true },
       orderBy: { createdAt: 'desc' },
       take,
     });
+    return messages.map((message) => this.withReadState(message, userId));
   }
 
   async send(senderId: string, dto: SendMessageDto) {
@@ -24,13 +25,14 @@ export class MessagesService {
         senderId,
         type: dto.type,
         content: dto.content,
+        durationMs: dto.durationMs,
         attachments: dto.attachmentIds?.length
           ? {
               connect: dto.attachmentIds.map((id) => ({ id })),
             }
           : undefined,
       },
-      include: { attachments: true },
+      include: { attachments: true, receipts: true },
     });
 
     const members = await this.prisma.conversationMember.findMany({
@@ -58,7 +60,7 @@ export class MessagesService {
       data: { updatedAt: new Date() },
     });
 
-    return message;
+    return this.withReadState(message, senderId);
   }
 
   async markDelivered(userId: string, messageId: string) {
@@ -81,6 +83,14 @@ export class MessagesService {
   async markRead(userId: string, conversationId: string) {
     await this.assertMember(userId, conversationId);
     const now = new Date();
+    const unreadReceipts = await this.prisma.messageReceipt.findMany({
+      where: {
+        userId,
+        readAt: null,
+        message: { conversationId, senderId: { not: userId } },
+      },
+      select: { messageId: true },
+    });
     await this.prisma.messageReceipt.updateMany({
       where: {
         userId,
@@ -89,7 +99,11 @@ export class MessagesService {
       },
       data: { readAt: now, deliveredAt: now },
     });
-    return { ok: true };
+    await this.prisma.conversationMember.update({
+      where: { conversationId_userId: { conversationId, userId } },
+      data: { lastReadAt: now },
+    });
+    return { ok: true, conversationId, readerId: userId, messageIds: unreadReceipts.map((receipt) => receipt.messageId) };
   }
 
   async conversationMemberIds(conversationId: string) {
@@ -107,5 +121,15 @@ export class MessagesService {
     if (!member) {
       throw new ForbiddenException('Not a conversation member');
     }
+  }
+
+  private withReadState<T extends { senderId: string; receipts?: { readAt: Date | null }[] }>(
+    message: T,
+    userId: string,
+  ) {
+    return {
+      ...message,
+      readByOthers: message.senderId === userId && (message.receipts ?? []).some((receipt) => receipt.readAt),
+    };
   }
 }

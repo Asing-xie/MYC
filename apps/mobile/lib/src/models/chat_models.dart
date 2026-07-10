@@ -58,12 +58,18 @@ class AlbumPhoto {
 class Conversation {
   Conversation({
     required this.id,
+    this.type = 'DIRECT',
+    this.title,
+    this.avatarUrl,
     required this.members,
     this.latestMessage,
     this.unread = 0,
   });
 
   final String id;
+  final String type;
+  final String? title;
+  final String? avatarUrl;
   final List<ChatUser> members;
   final ChatMessage? latestMessage;
   final int unread;
@@ -72,6 +78,9 @@ class Conversation {
     final membersJson = (json['members'] as List<dynamic>? ?? []);
     return Conversation(
       id: json['id'] as String,
+      type: json['type'] as String? ?? 'DIRECT',
+      title: json['title'] as String?,
+      avatarUrl: json['avatarUrl'] as String?,
       members: membersJson
           .map((member) => ChatUser.fromJson((member as Map<String, dynamic>)['user'] as Map<String, dynamic>))
           .toList(),
@@ -87,6 +96,22 @@ class Conversation {
       if (member.id != currentUserId) return member;
     }
     return members.isEmpty ? null : members.first;
+  }
+
+  bool get isGroup => type == 'GROUP';
+
+  String displayName(String currentUserId) {
+    if (isGroup) {
+      final trimmedTitle = title?.trim();
+      if (trimmedTitle != null && trimmedTitle.isNotEmpty) return trimmedTitle;
+      return members.map((member) => member.nickname).take(4).join(', ');
+    }
+    return peerFor(currentUserId)?.nickname ?? 'Chat';
+  }
+
+  String? displayAvatarUrl(String currentUserId) {
+    if (isGroup) return avatarUrl;
+    return peerFor(currentUserId)?.avatarUrl;
   }
 
   String latestPreview() {
@@ -134,8 +159,10 @@ class ChatMessage {
     required this.senderId,
     required this.type,
     this.content,
+    this.durationMs,
     required this.status,
     required this.createdAt,
+    this.readByOthers = false,
   });
 
   final String id;
@@ -143,8 +170,10 @@ class ChatMessage {
   final String senderId;
   final String type;
   final String? content;
+  final int? durationMs;
   final String status;
   final DateTime createdAt;
+  final bool readByOthers;
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
@@ -153,8 +182,34 @@ class ChatMessage {
       senderId: json['senderId'] as String,
       type: json['type'] as String,
       content: json['content'] as String?,
+      durationMs: json['durationMs'] as int?,
       status: json['status'] as String? ?? 'SENT',
       createdAt: DateTime.parse(json['createdAt'] as String),
+      readByOthers: json['readByOthers'] as bool? ?? _readByOthersFromReceipts(json['receipts']),
+    );
+  }
+
+  ChatMessage copyWith({
+    String? id,
+    String? conversationId,
+    String? senderId,
+    String? type,
+    String? content,
+    int? durationMs,
+    String? status,
+    DateTime? createdAt,
+    bool? readByOthers,
+  }) {
+    return ChatMessage(
+      id: id ?? this.id,
+      conversationId: conversationId ?? this.conversationId,
+      senderId: senderId ?? this.senderId,
+      type: type ?? this.type,
+      content: content ?? this.content,
+      durationMs: durationMs ?? this.durationMs,
+      status: status ?? this.status,
+      createdAt: createdAt ?? this.createdAt,
+      readByOthers: readByOthers ?? this.readByOthers,
     );
   }
 
@@ -162,5 +217,10 @@ class ChatMessage {
     if (type == 'IMAGE') return '[图片]';
     if (type == 'VOICE') return '[语音]';
     return content ?? '';
+  }
+
+  static bool _readByOthersFromReceipts(dynamic receiptsJson) {
+    if (receiptsJson is! List) return false;
+    return receiptsJson.any((receipt) => receipt is Map && receipt['readAt'] != null);
   }
 }

@@ -71,7 +71,9 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: () async {
-          setState(() => _future = widget.api.conversations());
+          setState(() {
+            _future = widget.api.conversations();
+          });
           await _future;
         },
         child: FutureBuilder<List<Conversation>>(
@@ -145,7 +147,9 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   }
 
   void _refresh() {
-    setState(() => _future = widget.api.conversations());
+    setState(() {
+      _future = widget.api.conversations();
+    });
   }
 
   Future<void> _openConversation(Conversation conversation) async {

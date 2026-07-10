@@ -85,7 +85,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Future<void> _refresh() async {
-    setState(() => _future = widget.api.contacts());
+    setState(() {
+      _future = widget.api.contacts();
+    });
     await _future;
   }
 

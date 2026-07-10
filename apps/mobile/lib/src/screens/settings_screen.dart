@@ -21,8 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _loggingOut = false;
 
   static const _languages = [
-    _LanguageOption(code: 'zh-Hans', label: '简体中文'),
-    _LanguageOption(code: 'zh-Hant', label: '繁體中文'),
+    _LanguageOption(code: 'zh-Hans', label: '中文'),
     _LanguageOption(code: 'en', label: 'English'),
   ];
 
@@ -73,7 +72,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final code = await widget.api.languageCode();
     if (!mounted) return;
     setState(() {
-      _languageCode = code;
+      _languageCode = code == 'en' ? 'en' : 'zh-Hans';
       _loadingLanguage = false;
     });
   }

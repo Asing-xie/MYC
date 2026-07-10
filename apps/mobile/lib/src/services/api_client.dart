@@ -10,10 +10,19 @@ class ApiClient {
   final String baseUrl;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   static const _seenIncomingContactRequestsKey = 'seenIncomingContactRequestsCount';
+  static const _languageCodeKey = 'languageCode';
 
   Future<String?> get token => _storage.read(key: 'accessToken');
 
   Future<void> logout() => _storage.delete(key: 'accessToken');
+
+  Future<String> languageCode() async {
+    return await _storage.read(key: _languageCodeKey) ?? 'zh-Hans';
+  }
+
+  Future<void> setLanguageCode(String code) {
+    return _storage.write(key: _languageCodeKey, value: code);
+  }
 
   Future<ChatUser> register(String identity, String password, String nickname) async {
     final data = await _post('/auth/register', {

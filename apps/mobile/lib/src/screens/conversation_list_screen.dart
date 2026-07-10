@@ -8,6 +8,7 @@ import 'chat_screen.dart';
 import 'contacts_screen.dart';
 import 'create_group_screen.dart';
 import 'profile_screen.dart';
+import 'settings_screen.dart';
 import 'user_search_screen.dart';
 
 class ConversationListScreen extends StatefulWidget {
@@ -127,9 +128,9 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
           title: const Text('我'),
           actions: [
             IconButton(
-              tooltip: 'Logout',
-              onPressed: _logout,
-              icon: const Icon(Icons.logout),
+              tooltip: 'Settings',
+              onPressed: _openSettings,
+              icon: const Icon(Icons.settings_outlined),
             ),
           ],
         );
@@ -330,6 +331,17 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
         ),
       ),
       (_) => false,
+    );
+  }
+
+  Future<void> _openSettings() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => SettingsScreen(
+          api: widget.api,
+          onLogout: _logout,
+        ),
+      ),
     );
   }
 }

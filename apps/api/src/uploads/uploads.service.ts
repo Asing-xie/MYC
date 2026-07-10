@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import COS = require('cos-nodejs-sdk-v5');
 import { randomUUID } from 'crypto';
 import { extname } from 'path';
+import { MAX_SHORT_VIDEO_DURATION_MS } from '../common/media-limits';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateUploadDto } from './dto/create-upload.dto';
 
@@ -26,15 +27,29 @@ export class UploadsService {
     });
   }
 
-  async uploadFile(ownerId: string, type: 'IMAGE' | 'VOICE', file?: Express.Multer.File) {
+  async uploadFile(
+    ownerId: string,
+    type: 'IMAGE' | 'VOICE' | 'VIDEO',
+    file?: Express.Multer.File,
+    durationMs?: number,
+  ) {
     if (!file) {
       throw new BadRequestException('File is required');
+    }
+    if (type === 'VIDEO') {
+      if (durationMs == null) {
+        throw new BadRequestException('Video duration is required');
+      }
+      if (durationMs > MAX_SHORT_VIDEO_DURATION_MS) {
+        throw new BadRequestException('Videos must be 15 seconds or shorter');
+      }
     }
 
     const bucket = this.requiredConfig('COS_BUCKET');
     const region = this.requiredConfig('COS_REGION');
     const publicBaseUrl =
-      this.config.get<string>('COS_PUBLIC_BASE_URL') || `https://${bucket}.cos.${region}.myqcloud.com`;
+      this.config.get<string>('COS_PUBLIC_BASE_URL') ||
+      `https://${bucket}.cos.${region}.myqcloud.com`;
     const key = this.objectKey(type, file.originalname);
 
     await this.putObject(bucket, region, key, file);
@@ -46,11 +61,17 @@ export class UploadsService {
         url: `${publicBaseUrl.replace(/\/$/, '')}/${key}`,
         key,
         size: file.size,
+        duration: durationMs,
       },
     });
   }
 
-  async putObject(bucket: string, region: string, key: string, file: Express.Multer.File): Promise<void> {
+  async putObject(
+    bucket: string,
+    region: string,
+    key: string,
+    file: Express.Multer.File,
+  ): Promise<void> {
     const cos = new COS({
       SecretId: this.requiredConfig('COS_SECRET_ID'),
       SecretKey: this.requiredConfig('COS_SECRET_KEY'),
@@ -91,8 +112,9 @@ export class UploadsService {
     return value;
   }
 
-  private objectKey(type: 'IMAGE' | 'VOICE', originalName: string) {
-    const folder = type === 'IMAGE' ? 'images' : 'voices';
+  private objectKey(type: 'IMAGE' | 'VOICE' | 'VIDEO', originalName: string) {
+    const folder =
+      type === 'IMAGE' ? 'images' : type === 'VOICE' ? 'voices' : 'videos';
     const extension = extname(originalName || '').toLowerCase();
     return `chat/${folder}/${new Date().toISOString().slice(0, 10)}/${randomUUID()}${extension}`;
   }

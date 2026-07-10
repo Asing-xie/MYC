@@ -65,8 +65,15 @@ class AppStrings {
   String get imagePreview => en ? '[Image]' : '[图片]';
   String get voice => en ? 'Voice' : '语音';
   String get voicePreview => en ? '[Voice]' : '[语音]';
+  String get video => en ? 'Video' : '视频';
+  String get videoPreview => en ? '[Video]' : '[视频]';
+  String get addVideo => en ? 'Add Video' : '添加视频';
+  String get cancelVoice => en ? 'Cancel voice' : '取消录音';
+  String get sendVoice => en ? 'Send voice' : '发送语音';
   String get stopVoice => en ? 'Stop voice' : '停止录音';
   String get recording => en ? 'Recording...' : '录音中...';
+  String get videoTooLong =>
+      en ? 'Video must be 15 seconds or shorter' : '视频不能超过15秒';
   String get message => en ? 'Message' : '消息';
   String get send => en ? 'Send' : '发送';
   String get sending => en ? 'Sending...' : '发送中...';
@@ -79,6 +86,8 @@ class AppStrings {
   String get imageUnavailable => en ? '[image unavailable]' : '[图片不可用]';
   String voiceMessage(String duration) =>
       en ? 'Voice $duration' : '语音 $duration';
+  String videoMessage(String duration) =>
+      duration.isEmpty ? video : (en ? 'Video $duration' : '视频 $duration');
   String get profile => en ? 'Profile' : '个人资料';
   String get myProfile => en ? 'My Profile' : '我的资料';
   String get editProfile => en ? 'Edit profile' : '编辑资料';

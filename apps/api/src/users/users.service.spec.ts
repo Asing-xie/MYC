@@ -1,10 +1,15 @@
+import { BadRequestException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 describe('UsersService', () => {
   let service: UsersService;
   let prisma: {
-    user: { findUniqueOrThrow: jest.Mock; update: jest.Mock; findMany: jest.Mock };
+    user: {
+      findUniqueOrThrow: jest.Mock;
+      update: jest.Mock;
+      findMany: jest.Mock;
+    };
     userAlbumPhoto: { findMany: jest.Mock; create: jest.Mock };
   };
 
@@ -66,20 +71,51 @@ describe('UsersService', () => {
   });
 
   it('adds and lists album photos', async () => {
-    prisma.userAlbumPhoto.create.mockResolvedValue({ id: 'p1', ownerId: 'u1', url: 'https://example.com/p.png' });
-    prisma.userAlbumPhoto.findMany.mockResolvedValue([{ id: 'p1', url: 'https://example.com/p.png' }]);
+    prisma.userAlbumPhoto.create.mockResolvedValue({
+      id: 'p1',
+      ownerId: 'u1',
+      url: 'https://example.com/p.png',
+    });
+    prisma.userAlbumPhoto.findMany.mockResolvedValue([
+      { id: 'p1', url: 'https://example.com/p.png' },
+    ]);
 
     await service.addAlbumPhoto('u1', { url: 'https://example.com/p.png' });
     const photos = await service.albumPhotos('u1');
 
     expect(photos).toHaveLength(1);
     expect(prisma.userAlbumPhoto.create).toHaveBeenCalledWith({
-      data: { ownerId: 'u1', url: 'https://example.com/p.png', caption: undefined },
+      data: {
+        ownerId: 'u1',
+        url: 'https://example.com/p.png',
+        caption: undefined,
+        type: 'IMAGE',
+        durationMs: undefined,
+      },
     });
     expect(prisma.userAlbumPhoto.findMany).toHaveBeenCalledWith({
       where: { ownerId: 'u1' },
       orderBy: { createdAt: 'desc' },
       take: 60,
     });
+  });
+
+  it('rejects album videos longer than 15 seconds', async () => {
+    await expect(
+      service.addAlbumPhoto('u1', {
+        url: 'https://example.com/v.mp4',
+        type: 'VIDEO',
+        durationMs: 16000,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects album videos without duration metadata', async () => {
+    await expect(
+      service.addAlbumPhoto('u1', {
+        url: 'https://example.com/v.mp4',
+        type: 'VIDEO',
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 });

@@ -54,20 +54,27 @@ class AlbumPhoto {
   AlbumPhoto({
     required this.id,
     required this.url,
+    this.type = 'IMAGE',
     this.caption,
+    this.durationMs,
     required this.createdAt,
   });
 
   final String id;
   final String url;
+  final String type;
   final String? caption;
+  final int? durationMs;
   final DateTime createdAt;
+  bool get isVideo => type == 'VIDEO';
 
   factory AlbumPhoto.fromJson(Map<String, dynamic> json) {
     return AlbumPhoto(
       id: json['id'] as String,
       url: json['url'] as String,
+      type: json['type'] as String? ?? 'IMAGE',
       caption: json['caption'] as String?,
+      durationMs: json['durationMs'] as int?,
       createdAt: DateTime.parse(json['createdAt'] as String),
     );
   }
@@ -269,6 +276,7 @@ class ChatMessage {
   String previewText(AppStrings strings) {
     if (type == 'IMAGE') return strings.imagePreview;
     if (type == 'VOICE') return strings.voicePreview;
+    if (type == 'VIDEO') return strings.videoPreview;
     return content ?? '';
   }
 

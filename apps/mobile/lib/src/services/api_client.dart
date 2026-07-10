@@ -75,10 +75,13 @@ class ApiClient {
         .toList();
   }
 
-  Future<AlbumPhoto> addAlbumPhoto(String url, {String? caption}) async {
+  Future<AlbumPhoto> addAlbumPhoto(String url,
+      {String? caption, String type = 'IMAGE', int? durationMs}) async {
     final data = await _post('/users/me/photos', {
       'url': url,
       if (caption != null) 'caption': caption,
+      'type': type,
+      if (durationMs != null) 'durationMs': durationMs,
     });
     return AlbumPhoto.fromJson(data);
   }
@@ -226,9 +229,13 @@ class ApiClient {
     await _post('/messages/$conversationId/read', {});
   }
 
-  Future<Map<String, dynamic>> uploadFile(String type, File file) async {
-    final request = http.MultipartRequest(
-        'POST', Uri.parse('$baseUrl/uploads/file?type=$type'));
+  Future<Map<String, dynamic>> uploadFile(String type, File file,
+      {int? durationMs}) async {
+    final uri = Uri.parse('$baseUrl/uploads/file').replace(queryParameters: {
+      'type': type,
+      if (durationMs != null) 'durationMs': durationMs.toString(),
+    });
+    final request = http.MultipartRequest('POST', uri);
     final accessToken = await token;
     if (accessToken != null) {
       request.headers['Authorization'] = 'Bearer $accessToken';

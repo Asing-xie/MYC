@@ -1,11 +1,18 @@
-import { IsArray, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import {
+  IsArray,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class SendMessageDto {
   @IsString()
   conversationId!: string;
 
-  @IsIn(['TEXT', 'IMAGE', 'VOICE'])
-  type!: 'TEXT' | 'IMAGE' | 'VOICE';
+  @IsIn(['TEXT', 'IMAGE', 'VOICE', 'VIDEO'])
+  type!: 'TEXT' | 'IMAGE' | 'VOICE' | 'VIDEO';
 
   @IsOptional()
   @IsString()

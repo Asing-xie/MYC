@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { MAX_SHORT_VIDEO_DURATION_MS } from '../common/media-limits';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddAlbumPhotoDto } from './dto/add-album-photo.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -40,11 +41,23 @@ export class UsersService {
   }
 
   async addAlbumPhoto(userId: string, dto: AddAlbumPhotoDto) {
+    if (dto.type === 'VIDEO') {
+      if (dto.durationMs == null) {
+        throw new BadRequestException('Video duration is required');
+      }
+      if (dto.durationMs > MAX_SHORT_VIDEO_DURATION_MS) {
+        throw new BadRequestException(
+          'Profile videos must be 15 seconds or shorter',
+        );
+      }
+    }
     return this.prisma.userAlbumPhoto.create({
       data: {
         ownerId: userId,
         url: dto.url,
         caption: dto.caption,
+        type: dto.type ?? 'IMAGE',
+        durationMs: dto.durationMs,
       },
     });
   }

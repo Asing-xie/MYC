@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Query, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../common/current-user.decorator';
@@ -22,12 +31,20 @@ export class UploadsController {
   }
 
   @Post('file')
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 50 * 1024 * 1024 } }),
+  )
   uploadFile(
     @CurrentUser() user: AuthUser,
-    @Query('type') type: 'IMAGE' | 'VOICE' = 'IMAGE',
+    @Query('type') type: 'IMAGE' | 'VOICE' | 'VIDEO' = 'IMAGE',
+    @Query('durationMs') durationMs?: string,
     @UploadedFile() file?: Express.Multer.File,
   ) {
-    return this.uploadsService.uploadFile(user.id, type, file);
+    return this.uploadsService.uploadFile(
+      user.id,
+      type,
+      file,
+      durationMs ? Number(durationMs) : undefined,
+    );
   }
 }

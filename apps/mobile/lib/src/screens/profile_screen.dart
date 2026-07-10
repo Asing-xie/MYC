@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:video_player/video_player.dart';
 import '../models/chat_models.dart';
 import '../services/app_language.dart';
 import '../services/api_client.dart';
+import 'video_player_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({
@@ -53,20 +55,30 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                    child: Text(_error!,
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.error)),
                   ),
                 if (profile != null) _profileHeader(profile),
                 const SizedBox(height: 24),
                 _sectionTitle(strings.album),
                 const SizedBox(height: 10),
                 if (_isMe)
-                  Align(
-                    alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      OutlinedButton.icon(
                         onPressed: _saving ? null : _addAlbumImage,
                         icon: const Icon(Icons.add_photo_alternate_outlined),
                         label: Text(strings.addPhoto),
-                    ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _saving ? null : _addAlbumVideo,
+                        icon: const Icon(Icons.video_call_outlined),
+                        label: Text(strings.addVideo),
+                      ),
+                    ],
                   ),
                 const SizedBox(height: 12),
                 _albumGrid(),
@@ -91,8 +103,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           onTap: _isMe && !_saving ? _changeAvatar : null,
           child: CircleAvatar(
             radius: 42,
-            backgroundImage: user.avatarUrl == null ? null : NetworkImage(user.avatarUrl!),
-            child: user.avatarUrl == null ? Text(user.nickname.characters.first.toUpperCase()) : null,
+            backgroundImage:
+                user.avatarUrl == null ? null : NetworkImage(user.avatarUrl!),
+            child: user.avatarUrl == null
+                ? Text(user.nickname.characters.first.toUpperCase())
+                : null,
           ),
         ),
         const SizedBox(width: 16),
@@ -103,7 +118,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: Text(user.nickname, style: Theme.of(context).textTheme.headlineSmall),
+                    child: Text(user.nickname,
+                        style: Theme.of(context).textTheme.headlineSmall),
                   ),
                   if (_isMe)
                     IconButton(
@@ -117,7 +133,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
               const SizedBox(height: 12),
               Text(
-                (user.signature?.trim().isNotEmpty ?? false) ? user.signature!.trim() : strings.noSignature,
+                (user.signature?.trim().isNotEmpty ?? false)
+                    ? user.signature!.trim()
+                    : strings.noSignature,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
               if (_isMe)
@@ -144,7 +162,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (_photos.isEmpty) {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 28),
-        child: Center(child: Text(_isMe ? strings.noPhotosYet : strings.noPublicPhotos)),
+        child: Center(
+            child: Text(_isMe ? strings.noPhotosYet : strings.noPublicPhotos)),
       );
     }
     return GridView.builder(
@@ -159,20 +178,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
       itemBuilder: (context, index) {
         final photo = _photos[index];
         return GestureDetector(
-          onTap: () => _previewImage(photo.url),
+          onTap: () => photo.isVideo
+              ? _previewVideo(photo.url)
+              : _previewImage(photo.url),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(6),
-            child: Image.network(
-              photo.url,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                color: Colors.grey.shade200,
-                child: const Icon(Icons.broken_image_outlined),
-              ),
-            ),
+            child: photo.isVideo ? _videoTile(photo) : _imageTile(photo.url),
           ),
         );
       },
+    );
+  }
+
+  Widget _imageTile(String url) {
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => Container(
+        color: Colors.grey.shade200,
+        child: const Icon(Icons.broken_image_outlined),
+      ),
+    );
+  }
+
+  Widget _videoTile(AlbumPhoto media) {
+    return Container(
+      color: Colors.black87,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          const Icon(Icons.play_circle_outline, color: Colors.white, size: 34),
+          if (media.durationMs != null)
+            Positioned(
+              right: 6,
+              bottom: 4,
+              child: Text(
+                _formatDuration(media.durationMs),
+                style: const TextStyle(color: Colors.white, fontSize: 11),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -197,21 +243,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _changeAvatar() async {
-    final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final image =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (image == null) return;
     await _runSaving(() async {
       final upload = await widget.api.uploadFile('IMAGE', File(image.path));
-      final updated = await widget.api.updateProfile(avatarUrl: upload['url'] as String);
+      final updated =
+          await widget.api.updateProfile(avatarUrl: upload['url'] as String);
       setState(() => _profile = updated);
     });
   }
 
   Future<void> _addAlbumImage() async {
-    final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final image =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (image == null) return;
     await _runSaving(() async {
       final upload = await widget.api.uploadFile('IMAGE', File(image.path));
       await widget.api.addAlbumPhoto(upload['url'] as String);
+      final photos = await widget.api.albumPhotos(widget.userId);
+      setState(() => _photos = photos);
+    });
+  }
+
+  Future<void> _addAlbumVideo() async {
+    final strings = AppLanguageScope.stringsOf(context);
+    final video = await _picker.pickVideo(source: ImageSource.gallery);
+    if (video == null) return;
+    final file = File(video.path);
+    final durationMs = await _videoDurationMs(file);
+    if (durationMs == null || durationMs > 15000) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(strings.videoTooLong)));
+      return;
+    }
+    await _runSaving(() async {
+      final upload =
+          await widget.api.uploadFile('VIDEO', file, durationMs: durationMs);
+      await widget.api.addAlbumPhoto(upload['url'] as String,
+          type: 'VIDEO', durationMs: durationMs);
       final photos = await widget.api.albumPhotos(widget.userId);
       setState(() => _photos = photos);
     });
@@ -243,7 +314,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.of(context).pop(), child: Text(strings.cancel)),
+          TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(strings.cancel)),
           FilledButton(
             onPressed: () => Navigator.of(context).pop((
               nickname: nickname.text.trim(),
@@ -298,5 +371,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     );
+  }
+
+  void _previewVideo(String url) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => VideoPlayerScreen(url: url)),
+    );
+  }
+
+  Future<int?> _videoDurationMs(File file) async {
+    final controller = VideoPlayerController.file(file);
+    try {
+      await controller.initialize();
+      return controller.value.duration.inMilliseconds;
+    } catch (_) {
+      return null;
+    } finally {
+      await controller.dispose();
+    }
+  }
+
+  String _formatDuration(int? durationMs) {
+    if (durationMs == null || durationMs <= 0) return '';
+    final seconds = (durationMs / 1000).ceil();
+    return '$seconds"';
   }
 }

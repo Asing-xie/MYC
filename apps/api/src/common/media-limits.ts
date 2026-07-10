@@ -1,0 +1,1 @@
+export const MAX_SHORT_VIDEO_DURATION_MS = 15_000;

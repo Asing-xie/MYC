@@ -1,8 +1,8 @@
 import { IsIn, IsInt, IsOptional, IsString, IsUrl, Min } from 'class-validator';
 
 export class CreateUploadDto {
-  @IsIn(['IMAGE', 'VOICE'])
-  type!: 'IMAGE' | 'VOICE';
+  @IsIn(['IMAGE', 'VOICE', 'VIDEO'])
+  type!: 'IMAGE' | 'VOICE' | 'VIDEO';
 
   @IsUrl({ require_tld: false })
   url!: string;

@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
+import 'package:video_player/video_player.dart';
 import '../models/chat_models.dart';
 import '../services/app_language.dart';
 import '../services/api_client.dart';
@@ -12,6 +13,7 @@ import '../services/message_merge.dart';
 import '../services/socket_service.dart';
 import 'group_settings_screen.dart';
 import 'profile_screen.dart';
+import 'video_player_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
@@ -31,8 +33,9 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final _text = TextEditingController();
+  final _scroll = ScrollController();
   final _picker = ImagePicker();
   final _recorder = AudioRecorder();
   final _player = AudioPlayer();
@@ -46,10 +49,12 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _recording = false;
   bool _sending = false;
   String? _playingUrl;
+  double _lastBottomInset = 0;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _conversation = widget.conversation;
     widget.socket.joinConversation(_conversation.id);
     _messageSub = widget.socket.messages.listen((message) {
@@ -62,6 +67,7 @@ class _ChatScreenState extends State<ChatScreen> {
           incoming: message,
         );
       });
+      _scrollToBottom();
       if (message.senderId != widget.currentUser.id) {
         _markRead();
       }
@@ -94,6 +100,7 @@ class _ChatScreenState extends State<ChatScreen> {
           ..addAll(messages);
         _loading = false;
       });
+      _scrollToBottom(jump: true);
       _markRead();
     } catch (_) {
       if (mounted) setState(() => _loading = false);
@@ -114,12 +121,23 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _text.dispose();
+    _scroll.dispose();
     _recorder.dispose();
     _player.dispose();
     _messageSub?.cancel();
     _readSub?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeMetrics() {
+    final bottomInset = View.of(context).viewInsets.bottom;
+    if (bottomInset != _lastBottomInset) {
+      _lastBottomInset = bottomInset;
+      _scrollToBottom();
+    }
   }
 
   @override
@@ -171,6 +189,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : ListView.builder(
+                    controller: _scroll,
                     padding: const EdgeInsets.all(12),
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
@@ -201,13 +220,29 @@ class _ChatScreenState extends State<ChatScreen> {
                   SizedBox.square(
                     dimension: 42,
                     child: IconButton(
-                      tooltip: _recording ? strings.stopVoice : strings.voice,
-                      onPressed: _sending ? null : _toggleVoice,
-                      icon: Icon(_recording
-                          ? Icons.stop_circle_outlined
-                          : Icons.mic_none),
+                      tooltip: strings.video,
+                      onPressed: _sending || _recording ? null : _sendVideo,
+                      icon: const Icon(Icons.videocam_outlined),
                     ),
                   ),
+                  SizedBox.square(
+                    dimension: 42,
+                    child: IconButton(
+                      tooltip: _recording ? strings.sendVoice : strings.voice,
+                      onPressed: _sending ? null : _toggleVoice,
+                      icon: Icon(
+                          _recording ? Icons.send_outlined : Icons.mic_none),
+                    ),
+                  ),
+                  if (_recording)
+                    SizedBox.square(
+                      dimension: 42,
+                      child: IconButton(
+                        tooltip: strings.cancelVoice,
+                        onPressed: _cancelVoice,
+                        icon: const Icon(Icons.close),
+                      ),
+                    ),
                   Expanded(
                     child: TextField(
                       controller: _text,
@@ -358,6 +393,31 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     }
+    if (message.type == 'VIDEO' && message.content != null) {
+      return InkWell(
+        onTap: () => _previewVideo(message.content!),
+        child: Container(
+          width: 220,
+          height: 140,
+          decoration: BoxDecoration(
+            color: Colors.black87,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.play_circle_outline,
+                  color: Colors.white, size: 42),
+              const SizedBox(height: 8),
+              Text(
+                strings.videoMessage(_formatDuration(message.durationMs)),
+                style: const TextStyle(color: Colors.white),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
     return Text(message.content ?? '');
   }
 
@@ -427,6 +487,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _pendingMessageIds.add(localId);
       _messages.add(localMessage);
     });
+    _scrollToBottom();
 
     try {
       final message =
@@ -472,6 +533,21 @@ class _ChatScreenState extends State<ChatScreen> {
     await _uploadAndSend('IMAGE', File(image.path));
   }
 
+  Future<void> _sendVideo() async {
+    final strings = AppLanguageScope.stringsOf(context);
+    final video = await _picker.pickVideo(source: ImageSource.gallery);
+    if (video == null) return;
+    final file = File(video.path);
+    final durationMs = await _videoDurationMs(file);
+    if (durationMs == null || durationMs > 15000) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(strings.videoTooLong)));
+      return;
+    }
+    await _uploadAndSend('VIDEO', file, durationMs: durationMs);
+  }
+
   Future<void> _toggleVoice() async {
     if (_recording) {
       final path = await _recorder.stop();
@@ -502,10 +578,24 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _recording = true);
   }
 
+  Future<void> _cancelVoice() async {
+    final path = await _recorder.stop();
+    if (!mounted) return;
+    setState(() => _recording = false);
+    if (path != null) {
+      try {
+        await File(path).delete();
+      } catch (_) {
+        // Temporary recording cleanup is best-effort.
+      }
+    }
+  }
+
   Future<void> _uploadAndSend(String type, File file, {int? durationMs}) async {
     try {
       setState(() => _sending = true);
-      final attachment = await widget.api.uploadFile(type, file);
+      final attachment =
+          await widget.api.uploadFile(type, file, durationMs: durationMs);
       final url = attachment['url'] as String;
       await _sendTyped(type, url, durationMs: durationMs);
     } catch (error) {
@@ -542,6 +632,18 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  Future<int?> _videoDurationMs(File file) async {
+    final controller = VideoPlayerController.file(file);
+    try {
+      await controller.initialize();
+      return controller.value.duration.inMilliseconds;
+    } catch (_) {
+      return null;
+    } finally {
+      await controller.dispose();
+    }
+  }
+
   void _previewImage(String url) {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -559,6 +661,28 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
     );
+  }
+
+  void _previewVideo(String url) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => VideoPlayerScreen(url: url)),
+    );
+  }
+
+  void _scrollToBottom({bool jump = false}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scroll.hasClients) return;
+      final target = _scroll.position.maxScrollExtent;
+      if (jump) {
+        _scroll.jumpTo(target);
+        return;
+      }
+      _scroll.animateTo(
+        target,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   String _formatDuration(int? durationMs) {

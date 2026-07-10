@@ -1,4 +1,10 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { MAX_SHORT_VIDEO_DURATION_MS } from '../common/media-limits';
 import { SendMessageDto } from './dto/send-message.dto';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -19,6 +25,16 @@ export class MessagesService {
 
   async send(senderId: string, dto: SendMessageDto) {
     await this.assertMember(senderId, dto.conversationId);
+    if (dto.type === 'VIDEO') {
+      if (dto.durationMs == null) {
+        throw new BadRequestException('Video duration is required');
+      }
+      if (dto.durationMs > MAX_SHORT_VIDEO_DURATION_MS) {
+        throw new BadRequestException(
+          'Video messages must be 15 seconds or shorter',
+        );
+      }
+    }
     const message = await this.prisma.message.create({
       data: {
         conversationId: dto.conversationId,
@@ -103,7 +119,12 @@ export class MessagesService {
       where: { conversationId_userId: { conversationId, userId } },
       data: { lastReadAt: now },
     });
-    return { ok: true, conversationId, readerId: userId, messageIds: unreadReceipts.map((receipt) => receipt.messageId) };
+    return {
+      ok: true,
+      conversationId,
+      readerId: userId,
+      messageIds: unreadReceipts.map((receipt) => receipt.messageId),
+    };
   }
 
   async conversationMemberIds(conversationId: string) {
@@ -123,13 +144,14 @@ export class MessagesService {
     }
   }
 
-  private withReadState<T extends { senderId: string; receipts?: { readAt: Date | null }[] }>(
-    message: T,
-    userId: string,
-  ) {
+  private withReadState<
+    T extends { senderId: string; receipts?: { readAt: Date | null }[] },
+  >(message: T, userId: string) {
     return {
       ...message,
-      readByOthers: message.senderId === userId && (message.receipts ?? []).some((receipt) => receipt.readAt),
+      readByOthers:
+        message.senderId === userId &&
+        (message.receipts ?? []).some((receipt) => receipt.readAt),
     };
   }
 }

@@ -9,7 +9,8 @@ class ApiClient {
 
   final String baseUrl;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
-  static const _seenIncomingContactRequestsKey = 'seenIncomingContactRequestsCount';
+  static const _seenIncomingContactRequestsKey =
+      'seenIncomingContactRequestsCount';
   static const _languageCodeKey = 'languageCode';
 
   Future<String?> get token => _storage.read(key: 'accessToken');
@@ -24,19 +25,23 @@ class ApiClient {
     return _storage.write(key: _languageCodeKey, value: code);
   }
 
-  Future<ChatUser> register(String identity, String password, String nickname) async {
+  Future<ChatUser> register(
+      String identity, String password, String nickname) async {
     final data = await _post('/auth/register', {
       'identity': identity,
       'password': password,
       'nickname': nickname,
     });
-    await _storage.write(key: 'accessToken', value: data['accessToken'] as String);
+    await _storage.write(
+        key: 'accessToken', value: data['accessToken'] as String);
     return ChatUser.fromJson(data['user'] as Map<String, dynamic>);
   }
 
   Future<ChatUser> login(String identity, String password) async {
-    final data = await _post('/auth/login', {'identity': identity, 'password': password});
-    await _storage.write(key: 'accessToken', value: data['accessToken'] as String);
+    final data = await _post(
+        '/auth/login', {'identity': identity, 'password': password});
+    await _storage.write(
+        key: 'accessToken', value: data['accessToken'] as String);
     return ChatUser.fromJson(data['user'] as Map<String, dynamic>);
   }
 
@@ -65,7 +70,9 @@ class ApiClient {
 
   Future<List<AlbumPhoto>> albumPhotos(String userId) async {
     final data = await _get('/users/$userId/photos') as List<dynamic>;
-    return data.map((item) => AlbumPhoto.fromJson(item as Map<String, dynamic>)).toList();
+    return data
+        .map((item) => AlbumPhoto.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<AlbumPhoto> addAlbumPhoto(String url, {String? caption}) async {
@@ -77,8 +84,12 @@ class ApiClient {
   }
 
   Future<List<ChatUser>> searchUsers(String query) async {
-    final data = await _get('/users/search?q=${Uri.encodeQueryComponent(query)}') as List<dynamic>;
-    return data.map((item) => ChatUser.fromJson(item as Map<String, dynamic>)).toList();
+    final data =
+        await _get('/users/search?q=${Uri.encodeQueryComponent(query)}')
+            as List<dynamic>;
+    return data
+        .map((item) => ChatUser.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<ContactRelation> sendContactRequest(String userId) async {
@@ -88,12 +99,16 @@ class ApiClient {
 
   Future<List<ContactRelation>> contacts() async {
     final data = await _get('/contacts') as List<dynamic>;
-    return data.map((item) => ContactRelation.fromJson(item as Map<String, dynamic>)).toList();
+    return data
+        .map((item) => ContactRelation.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<ContactRelation>> incomingContactRequests() async {
     final data = await _get('/contacts/requests/incoming') as List<dynamic>;
-    return data.map((item) => ContactRelation.fromJson(item as Map<String, dynamic>)).toList();
+    return data
+        .map((item) => ContactRelation.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<int> unseenIncomingContactRequestCount() async {
@@ -114,7 +129,9 @@ class ApiClient {
 
   Future<List<ContactRelation>> outgoingContactRequests() async {
     final data = await _get('/contacts/requests/outgoing') as List<dynamic>;
-    return data.map((item) => ContactRelation.fromJson(item as Map<String, dynamic>)).toList();
+    return data
+        .map((item) => ContactRelation.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<ContactRelation> acceptContactRequest(String contactId) async {
@@ -142,17 +159,60 @@ class ApiClient {
     return Conversation.fromJson(data);
   }
 
+  Future<Conversation> conversation(String conversationId) async {
+    final data =
+        await _get('/conversations/$conversationId') as Map<String, dynamic>;
+    return Conversation.fromJson(data);
+  }
+
+  Future<Conversation> updateGroupTitle(
+      String conversationId, String title) async {
+    final data = await _patch(
+        '/conversations/$conversationId/group-title', {'title': title});
+    return Conversation.fromJson(data);
+  }
+
+  Future<Conversation> addGroupMembers(
+      String conversationId, List<String> memberIds) async {
+    final data = await _post('/conversations/$conversationId/group-members',
+        {'memberIds': memberIds});
+    return Conversation.fromJson(data);
+  }
+
+  Future<Conversation> removeGroupMember(
+      String conversationId, String userId) async {
+    final data =
+        await _delete('/conversations/$conversationId/group-members/$userId');
+    return Conversation.fromJson(data);
+  }
+
+  Future<void> leaveGroup(String conversationId) async {
+    await _post('/conversations/$conversationId/leave', {});
+  }
+
+  Future<void> deleteGroup(String conversationId) async {
+    await _delete('/conversations/$conversationId');
+  }
+
   Future<List<Conversation>> conversations() async {
     final data = await _get('/conversations') as List<dynamic>;
-    return data.map((item) => Conversation.fromJson(item as Map<String, dynamic>)).toList();
+    return data
+        .map((item) => Conversation.fromJson(item as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<ChatMessage>> messages(String conversationId) async {
     final data = await _get('/messages/$conversationId') as List<dynamic>;
-    return data.map((item) => ChatMessage.fromJson(item as Map<String, dynamic>)).toList().reversed.toList();
+    return data
+        .map((item) => ChatMessage.fromJson(item as Map<String, dynamic>))
+        .toList()
+        .reversed
+        .toList();
   }
 
-  Future<ChatMessage> sendMessage(String conversationId, String type, String? content, {int? durationMs}) async {
+  Future<ChatMessage> sendMessage(
+      String conversationId, String type, String? content,
+      {int? durationMs}) async {
     final data = await _post('/messages', {
       'conversationId': conversationId,
       'type': type,
@@ -167,7 +227,8 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> uploadFile(String type, File file) async {
-    final request = http.MultipartRequest('POST', Uri.parse('$baseUrl/uploads/file?type=$type'));
+    final request = http.MultipartRequest(
+        'POST', Uri.parse('$baseUrl/uploads/file?type=$type'));
     final accessToken = await token;
     if (accessToken != null) {
       request.headers['Authorization'] = 'Bearer $accessToken';
@@ -180,11 +241,13 @@ class ApiClient {
   }
 
   Future<dynamic> _get(String path) async {
-    final response = await http.get(Uri.parse('$baseUrl$path'), headers: await _headers());
+    final response =
+        await http.get(Uri.parse('$baseUrl$path'), headers: await _headers());
     return _decode(response);
   }
 
-  Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> _post(
+      String path, Map<String, dynamic> body) async {
     final response = await http.post(
       Uri.parse('$baseUrl$path'),
       headers: await _headers(),
@@ -193,13 +256,20 @@ class ApiClient {
     return _decode(response) as Map<String, dynamic>;
   }
 
-  Future<Map<String, dynamic>> _patch(String path, Map<String, dynamic> body) async {
+  Future<Map<String, dynamic>> _patch(
+      String path, Map<String, dynamic> body) async {
     final response = await http.patch(
       Uri.parse('$baseUrl$path'),
       headers: await _headers(),
       body: jsonEncode(body),
     );
     return _decode(response) as Map<String, dynamic>;
+  }
+
+  Future<dynamic> _delete(String path) async {
+    final response = await http.delete(Uri.parse('$baseUrl$path'),
+        headers: await _headers());
+    return _decode(response);
   }
 
   Future<Map<String, String>> _headers() async {

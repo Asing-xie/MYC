@@ -33,7 +33,8 @@ class AppStrings {
   String get outgoingRequests => en ? 'Outgoing requests' : '发出的申请';
   String get clear => en ? 'Clear' : '清空';
   String get search => en ? 'Search' : '搜索';
-  String get searchHint => en ? 'Search by email, phone, or nickname' : '通过邮箱、手机号或昵称搜索';
+  String get searchHint =>
+      en ? 'Search by email, phone, or nickname' : '通过邮箱、手机号或昵称搜索';
   String get searchFieldLabel => en ? 'Email, phone, or nickname' : '邮箱、手机号或昵称';
   String get noUsersFound => en ? 'No users found' : '没有找到用户';
   String get requestSent => en ? 'Request sent' : '已发送申请';
@@ -41,9 +42,25 @@ class AppStrings {
   String get alreadyFriends => en ? 'Already friends' : '已经是好友';
   String get friendRequestSent => en ? 'Friend request sent' : '好友申请已发送';
   String get groupName => en ? 'Group name' : '群名称';
+  String get groupSettings => en ? 'Group settings' : '群设置';
+  String get groupMembers => en ? 'Group members' : '群成员';
+  String get addMembers => en ? 'Add members' : '添加成员';
+  String get removeMember => en ? 'Remove member' : '移除成员';
+  String get leaveGroup => en ? 'Leave group' : '退出群聊';
+  String get dissolveGroup => en ? 'Dissolve group' : '解散群聊';
+  String get owner => en ? 'Owner' : '群主';
+  String get member => en ? 'Member' : '成员';
+  String get noAvailableFriends => en ? 'No available friends' : '没有可添加的好友';
+  String get saveGroupName => en ? 'Save group name' : '保存群名称';
+  String get leaveGroupConfirm => en ? 'Leave this group?' : '确定退出这个群聊吗？';
+  String get dissolveGroupConfirm => en ? 'Dissolve this group?' : '确定解散这个群聊吗？';
+  String removeMemberConfirm(String name) =>
+      en ? 'Remove $name from the group?' : '将 $name 移出群聊？';
   String get create => en ? 'Create' : '创建';
-  String get atLeastTwoFriends => en ? 'At least two friends are required' : '至少需要选择两个好友';
-  String selectedCount(int selected, int total) => en ? 'Selected $selected/$total' : '已选择 $selected/$total';
+  String get atLeastTwoFriends =>
+      en ? 'At least two friends are required' : '至少需要选择两个好友';
+  String selectedCount(int selected, int total) =>
+      en ? 'Selected $selected/$total' : '已选择 $selected/$total';
   String get image => en ? 'Image' : '图片';
   String get imagePreview => en ? '[Image]' : '[图片]';
   String get voice => en ? 'Voice' : '语音';
@@ -55,11 +72,13 @@ class AppStrings {
   String get sending => en ? 'Sending...' : '发送中...';
   String get sendFailed => en ? 'Send failed' : '发送失败';
   String get messageSendFailed => en ? 'Message send failed' : '消息发送失败';
-  String get micPermissionDenied => en ? 'Microphone permission denied' : '麦克风权限被拒绝';
+  String get micPermissionDenied =>
+      en ? 'Microphone permission denied' : '麦克风权限被拒绝';
   String get read => en ? 'Read' : '已读';
   String get delivered => en ? 'Delivered' : '已送达';
   String get imageUnavailable => en ? '[image unavailable]' : '[图片不可用]';
-  String voiceMessage(String duration) => en ? 'Voice $duration' : '语音 $duration';
+  String voiceMessage(String duration) =>
+      en ? 'Voice $duration' : '语音 $duration';
   String get profile => en ? 'Profile' : '个人资料';
   String get myProfile => en ? 'My Profile' : '我的资料';
   String get editProfile => en ? 'Edit profile' : '编辑资料';

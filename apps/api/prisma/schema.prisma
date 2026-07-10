@@ -34,6 +34,11 @@ enum UserRole {
   GM
 }
 
+enum ConversationMemberRole {
+  OWNER
+  MEMBER
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String?  @unique
@@ -97,6 +102,7 @@ model ConversationMember {
   id             String    @id @default(cuid())
   conversationId String
   userId         String
+  role           ConversationMemberRole @default(MEMBER)
   lastReadAt     DateTime?
   createdAt      DateTime  @default(now())
 

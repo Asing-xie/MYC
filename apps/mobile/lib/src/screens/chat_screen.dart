@@ -10,6 +10,7 @@ import '../services/app_language.dart';
 import '../services/api_client.dart';
 import '../services/message_merge.dart';
 import '../services/socket_service.dart';
+import 'group_settings_screen.dart';
 import 'profile_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -40,6 +41,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final Set<String> _failedMessageIds = {};
   StreamSubscription<ChatMessage>? _messageSub;
   StreamSubscription<MessageReadEvent>? _readSub;
+  late Conversation _conversation;
   bool _loading = true;
   bool _recording = false;
   bool _sending = false;
@@ -48,9 +50,10 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
-    widget.socket.joinConversation(widget.conversation.id);
+    _conversation = widget.conversation;
+    widget.socket.joinConversation(_conversation.id);
     _messageSub = widget.socket.messages.listen((message) {
-      if (message.conversationId != widget.conversation.id) return;
+      if (message.conversationId != _conversation.id) return;
       if (!mounted) return;
       setState(() {
         mergeIncomingMessage(
@@ -64,14 +67,15 @@ class _ChatScreenState extends State<ChatScreen> {
       }
     });
     _readSub = widget.socket.readEvents.listen((event) {
-      if (event.conversationId != widget.conversation.id) return;
+      if (event.conversationId != _conversation.id) return;
       if (event.readerId == widget.currentUser.id) return;
       if (!mounted) return;
       final readIds = event.messageIds.toSet();
       setState(() {
         for (var index = 0; index < _messages.length; index += 1) {
           final message = _messages[index];
-          if (message.senderId == widget.currentUser.id && readIds.contains(message.id)) {
+          if (message.senderId == widget.currentUser.id &&
+              readIds.contains(message.id)) {
             _messages[index] = message.copyWith(readByOthers: true);
           }
         }
@@ -82,7 +86,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _load() async {
     try {
-      final messages = await widget.api.messages(widget.conversation.id);
+      final messages = await widget.api.messages(_conversation.id);
       if (!mounted) return;
       setState(() {
         _messages
@@ -98,10 +102,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Future<void> _markRead() async {
     try {
-      await widget.socket.markConversationRead(widget.conversation.id);
+      await widget.socket.markConversationRead(_conversation.id);
     } catch (_) {
       try {
-        await widget.api.markConversationRead(widget.conversation.id);
+        await widget.api.markConversationRead(_conversation.id);
       } catch (_) {
         // Read state is best-effort and will be retried when the chat opens again.
       }
@@ -121,22 +125,29 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final strings = AppLanguageScope.stringsOf(context);
-    final peer = widget.conversation.peerFor(widget.currentUser.id);
-    final title = widget.conversation.displayName(widget.currentUser.id);
-    final avatarUrl = widget.conversation.displayAvatarUrl(widget.currentUser.id);
+    final peer = _conversation.peerFor(widget.currentUser.id);
+    final title = _conversation.displayName(widget.currentUser.id);
+    final avatarUrl = _conversation.displayAvatarUrl(widget.currentUser.id);
     return Scaffold(
       appBar: AppBar(
         title: InkWell(
-          onTap: widget.conversation.isGroup || peer == null ? null : () => _openProfile(peer.id),
+          onTap: _conversation.isGroup || peer == null
+              ? null
+              : () => _openProfile(peer.id),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (widget.conversation.isGroup || peer != null) ...[
+              if (_conversation.isGroup || peer != null) ...[
                 CircleAvatar(
                   radius: 16,
-                  backgroundImage: avatarUrl == null ? null : NetworkImage(avatarUrl),
+                  backgroundImage:
+                      avatarUrl == null ? null : NetworkImage(avatarUrl),
                   child: avatarUrl == null
-                      ? Icon(widget.conversation.isGroup ? Icons.groups_outlined : Icons.person_outline, size: 18)
+                      ? Icon(
+                          _conversation.isGroup
+                              ? Icons.groups_outlined
+                              : Icons.person_outline,
+                          size: 18)
                       : null,
                 ),
                 const SizedBox(width: 8),
@@ -145,6 +156,14 @@ class _ChatScreenState extends State<ChatScreen> {
             ],
           ),
         ),
+        actions: [
+          if (_conversation.isGroup)
+            IconButton(
+              tooltip: strings.groupSettings,
+              onPressed: _openGroupSettings,
+              icon: const Icon(Icons.more_horiz),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -184,14 +203,17 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: IconButton(
                       tooltip: _recording ? strings.stopVoice : strings.voice,
                       onPressed: _sending ? null : _toggleVoice,
-                      icon: Icon(_recording ? Icons.stop_circle_outlined : Icons.mic_none),
+                      icon: Icon(_recording
+                          ? Icons.stop_circle_outlined
+                          : Icons.mic_none),
                     ),
                   ),
                   Expanded(
                     child: TextField(
                       controller: _text,
                       decoration: InputDecoration(
-                        hintText: _recording ? strings.recording : strings.message,
+                        hintText:
+                            _recording ? strings.recording : strings.message,
                         isDense: true,
                         filled: true,
                         border: OutlineInputBorder(
@@ -233,8 +255,11 @@ class _ChatScreenState extends State<ChatScreen> {
       onTap: () => _openProfile(message.senderId),
       child: CircleAvatar(
         radius: 16,
-        backgroundImage: sender?.avatarUrl == null ? null : NetworkImage(sender!.avatarUrl!),
-        child: sender?.avatarUrl == null ? Text((sender?.nickname ?? '?').characters.first.toUpperCase()) : null,
+        backgroundImage:
+            sender?.avatarUrl == null ? null : NetworkImage(sender!.avatarUrl!),
+        child: sender?.avatarUrl == null
+            ? Text((sender?.nickname ?? '?').characters.first.toUpperCase())
+            : null,
       ),
     );
     final bubble = Container(
@@ -242,11 +267,14 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       constraints: const BoxConstraints(maxWidth: 280),
       decoration: BoxDecoration(
-        color: mine ? Theme.of(context).colorScheme.primaryContainer : Colors.grey.shade200,
+        color: mine
+            ? Theme.of(context).colorScheme.primaryContainer
+            : Colors.grey.shade200,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
-        crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        crossAxisAlignment:
+            mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
           _messageBody(message),
@@ -258,7 +286,9 @@ class _ChatScreenState extends State<ChatScreen> {
                 _formatMessageTime(message.createdAt),
                 style: TextStyle(color: Colors.grey.shade700, fontSize: 11),
               ),
-              if (mine && !_pendingMessageIds.contains(message.id) && !_failedMessageIds.contains(message.id)) ...[
+              if (mine &&
+                  !_pendingMessageIds.contains(message.id) &&
+                  !_failedMessageIds.contains(message.id)) ...[
                 const SizedBox(width: 8),
                 Text(
                   message.readByOthers ? strings.read : strings.delivered,
@@ -267,11 +297,14 @@ class _ChatScreenState extends State<ChatScreen> {
               ],
             ],
           ),
-          if (_pendingMessageIds.contains(message.id) || _failedMessageIds.contains(message.id))
+          if (_pendingMessageIds.contains(message.id) ||
+              _failedMessageIds.contains(message.id))
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                _failedMessageIds.contains(message.id) ? strings.sendFailed : strings.sending,
+                _failedMessageIds.contains(message.id)
+                    ? strings.sendFailed
+                    : strings.sending,
                 style: TextStyle(
                   color: _failedMessageIds.contains(message.id)
                       ? Theme.of(context).colorScheme.error
@@ -316,7 +349,9 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(playing ? Icons.pause_circle_outline : Icons.play_circle_outline),
+            Icon(playing
+                ? Icons.pause_circle_outline
+                : Icons.play_circle_outline),
             const SizedBox(width: 8),
             Text(strings.voiceMessage(_formatDuration(message.durationMs))),
           ],
@@ -335,7 +370,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   ChatUser? _userFor(String userId) {
     if (widget.currentUser.id == userId) return widget.currentUser;
-    for (final member in widget.conversation.members) {
+    for (final member in _conversation.members) {
       if (member.id == userId) return member;
     }
     return null;
@@ -353,11 +388,33 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Future<void> _sendTyped(String type, String content, {int? durationMs}) async {
+  Future<void> _openGroupSettings() async {
+    final result = await Navigator.of(context).push<GroupSettingsResult>(
+      MaterialPageRoute(
+        builder: (_) => GroupSettingsScreen(
+          api: widget.api,
+          currentUser: widget.currentUser,
+          conversation: _conversation,
+        ),
+      ),
+    );
+    if (!mounted || result == null) return;
+    if (result.closed) {
+      Navigator.of(context).pop(true);
+      return;
+    }
+    final conversation = result.conversation;
+    if (conversation != null) {
+      setState(() => _conversation = conversation);
+    }
+  }
+
+  Future<void> _sendTyped(String type, String content,
+      {int? durationMs}) async {
     final localId = 'local-${DateTime.now().microsecondsSinceEpoch}';
     final localMessage = ChatMessage(
       id: localId,
-      conversationId: widget.conversation.id,
+      conversationId: _conversation.id,
       senderId: widget.currentUser.id,
       type: type,
       content: content,
@@ -372,7 +429,8 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     try {
-      final message = await _sendPersisted(type, content, durationMs: durationMs);
+      final message =
+          await _sendPersisted(type, content, durationMs: durationMs);
       if (!mounted) return;
       setState(() {
         mergeIncomingMessage(
@@ -388,22 +446,28 @@ class _ChatScreenState extends State<ChatScreen> {
         _pendingMessageIds.remove(localId);
         _failedMessageIds.add(localId);
       });
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLanguageScope.stringsOf(context).messageSendFailed)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text(AppLanguageScope.stringsOf(context).messageSendFailed)));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
   }
 
-  Future<ChatMessage> _sendPersisted(String type, String content, {int? durationMs}) async {
+  Future<ChatMessage> _sendPersisted(String type, String content,
+      {int? durationMs}) async {
     try {
-      return await widget.socket.sendMessage(widget.conversation.id, type, content, durationMs: durationMs);
+      return await widget.socket
+          .sendMessage(_conversation.id, type, content, durationMs: durationMs);
     } catch (_) {
-      return widget.api.sendMessage(widget.conversation.id, type, content, durationMs: durationMs);
+      return widget.api
+          .sendMessage(_conversation.id, type, content, durationMs: durationMs);
     }
   }
 
   Future<void> _sendImage() async {
-    final image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
+    final image =
+        await _picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
     if (image == null) return;
     await _uploadAndSend('IMAGE', File(image.path));
   }
@@ -423,13 +487,17 @@ class _ChatScreenState extends State<ChatScreen> {
     final allowed = await _recorder.hasPermission();
     if (!allowed) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(AppLanguageScope.stringsOf(context).micPermissionDenied)));
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content:
+              Text(AppLanguageScope.stringsOf(context).micPermissionDenied)));
       return;
     }
 
     final dir = await getTemporaryDirectory();
-    final path = '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
-    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+    final path =
+        '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    await _recorder.start(const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: path);
     if (!mounted) return;
     setState(() => _recording = true);
   }
@@ -442,7 +510,8 @@ class _ChatScreenState extends State<ChatScreen> {
       await _sendTyped(type, url, durationMs: durationMs);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) setState(() => _sending = false);
     }
@@ -477,7 +546,8 @@ class _ChatScreenState extends State<ChatScreen> {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => Scaffold(
-          appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white),
+          appBar: AppBar(
+              backgroundColor: Colors.black, foregroundColor: Colors.white),
           backgroundColor: Colors.black,
           body: Center(
             child: InteractiveViewer(
@@ -502,7 +572,9 @@ class _ChatScreenState extends State<ChatScreen> {
     final now = DateTime.now();
     final hh = local.hour.toString().padLeft(2, '0');
     final mm = local.minute.toString().padLeft(2, '0');
-    if (local.year == now.year && local.month == now.month && local.day == now.day) {
+    if (local.year == now.year &&
+        local.month == now.month &&
+        local.day == now.day) {
       return '$hh:$mm';
     }
     return '${local.month}/${local.day} $hh:$mm';

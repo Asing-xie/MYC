@@ -9,6 +9,7 @@ class ChatUser {
     this.avatarUrl,
     this.signature,
     this.role = 'USER',
+    this.membershipRole = 'MEMBER',
   });
 
   final String id;
@@ -18,6 +19,7 @@ class ChatUser {
   final String? avatarUrl;
   final String? signature;
   final String role;
+  final String membershipRole;
 
   factory ChatUser.fromJson(Map<String, dynamic> json) {
     return ChatUser(
@@ -32,6 +34,20 @@ class ChatUser {
   }
 
   bool get isGm => role == 'GM';
+  bool get isGroupOwner => membershipRole == 'OWNER';
+
+  ChatUser copyWith({String? membershipRole}) {
+    return ChatUser(
+      id: id,
+      nickname: nickname,
+      email: email,
+      phone: phone,
+      avatarUrl: avatarUrl,
+      signature: signature,
+      role: role,
+      membershipRole: membershipRole ?? this.membershipRole,
+    );
+  }
 }
 
 class AlbumPhoto {
@@ -83,9 +99,13 @@ class Conversation {
       type: json['type'] as String? ?? 'DIRECT',
       title: json['title'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
-      members: membersJson
-          .map((member) => ChatUser.fromJson((member as Map<String, dynamic>)['user'] as Map<String, dynamic>))
-          .toList(),
+      members: membersJson.map((member) {
+        final memberJson = member as Map<String, dynamic>;
+        return ChatUser.fromJson(memberJson['user'] as Map<String, dynamic>)
+            .copyWith(
+          membershipRole: memberJson['role'] as String? ?? 'MEMBER',
+        );
+      }).toList(),
       latestMessage: json['latestMessage'] == null
           ? null
           : ChatMessage.fromJson(json['latestMessage'] as Map<String, dynamic>),
@@ -120,6 +140,36 @@ class Conversation {
     final message = latestMessage;
     if (message == null) return strings.noMessagesYet;
     return message.previewText(strings);
+  }
+
+  ChatUser? memberFor(String userId) {
+    for (final member in members) {
+      if (member.id == userId) return member;
+    }
+    return null;
+  }
+
+  bool canManage(String currentUserId) {
+    return memberFor(currentUserId)?.isGroupOwner == true ||
+        memberFor(currentUserId)?.isGm == true;
+  }
+
+  Conversation copyWith({
+    String? title,
+    String? avatarUrl,
+    List<ChatUser>? members,
+    ChatMessage? latestMessage,
+    int? unread,
+  }) {
+    return Conversation(
+      id: id,
+      type: type,
+      title: title ?? this.title,
+      avatarUrl: avatarUrl ?? this.avatarUrl,
+      members: members ?? this.members,
+      latestMessage: latestMessage ?? this.latestMessage,
+      unread: unread ?? this.unread,
+    );
   }
 }
 
@@ -187,7 +237,8 @@ class ChatMessage {
       durationMs: json['durationMs'] as int?,
       status: json['status'] as String? ?? 'SENT',
       createdAt: DateTime.parse(json['createdAt'] as String),
-      readByOthers: json['readByOthers'] as bool? ?? _readByOthersFromReceipts(json['receipts']),
+      readByOthers: json['readByOthers'] as bool? ??
+          _readByOthersFromReceipts(json['receipts']),
     );
   }
 
@@ -223,6 +274,7 @@ class ChatMessage {
 
   static bool _readByOthersFromReceipts(dynamic receiptsJson) {
     if (receiptsJson is! List) return false;
-    return receiptsJson.any((receipt) => receipt is Map && receipt['readAt'] != null);
+    return receiptsJson
+        .any((receipt) => receipt is Map && receipt['readAt'] != null);
   }
 }

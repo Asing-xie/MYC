@@ -134,10 +134,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _openConversations(ChatUser user) {
     if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => ConversationListScreen(api: widget.api, socket: widget.socket, currentUser: user),
-      ),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => ConversationListScreen(api: widget.api, socket: widget.socket, currentUser: user),
+        ),
+      );
+    });
   }
 }

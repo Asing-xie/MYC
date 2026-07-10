@@ -9,6 +9,7 @@ class ApiClient {
 
   final String baseUrl;
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  static const _seenIncomingContactRequestsKey = 'seenIncomingContactRequestsCount';
 
   Future<String?> get token => _storage.read(key: 'accessToken');
 
@@ -53,6 +54,22 @@ class ApiClient {
   Future<List<ContactRelation>> incomingContactRequests() async {
     final data = await _get('/contacts/requests/incoming') as List<dynamic>;
     return data.map((item) => ContactRelation.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<int> unseenIncomingContactRequestCount() async {
+    final incoming = await incomingContactRequests();
+    final seenText = await _storage.read(key: _seenIncomingContactRequestsKey);
+    final seen = int.tryParse(seenText ?? '') ?? 0;
+    final unseen = incoming.length - seen;
+    return unseen > 0 ? unseen : 0;
+  }
+
+  Future<void> markIncomingContactRequestsSeen() async {
+    final incoming = await incomingContactRequests();
+    await _storage.write(
+      key: _seenIncomingContactRequestsKey,
+      value: incoming.length.toString(),
+    );
   }
 
   Future<List<ContactRelation>> outgoingContactRequests() async {

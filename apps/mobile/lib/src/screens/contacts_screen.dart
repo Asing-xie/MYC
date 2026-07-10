@@ -23,11 +23,13 @@ class ContactsScreen extends StatefulWidget {
 
 class _ContactsScreenState extends State<ContactsScreen> {
   late Future<List<ContactRelation>> _future;
+  int _friendRequestBadge = 0;
 
   @override
   void initState() {
     super.initState();
     _future = widget.api.contacts();
+    _refreshFriendRequestBadge();
   }
 
   @override
@@ -49,7 +51,17 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     leading: const CircleAvatar(child: Icon(Icons.person_add_alt_1)),
                     title: const Text('New Friends'),
                     subtitle: const Text('Friend requests'),
-                    trailing: const Icon(Icons.chevron_right),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_friendRequestBadge > 0)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: Badge(label: Text('$_friendRequestBadge')),
+                          ),
+                        const Icon(Icons.chevron_right),
+                      ],
+                    ),
                     onTap: _openRequests,
                   );
                 }
@@ -88,10 +100,18 @@ class _ContactsScreenState extends State<ContactsScreen> {
     setState(() {
       _future = widget.api.contacts();
     });
+    await _refreshFriendRequestBadge();
     await _future;
   }
 
   Future<void> _openRequests() async {
+    await widget.api.markIncomingContactRequestsSeen();
+    if (mounted) {
+      setState(() {
+        _friendRequestBadge = 0;
+      });
+    }
+    if (!mounted) return;
     final conversation = await Navigator.of(context).push<Conversation>(
       MaterialPageRoute(
         builder: (_) => FriendRequestsScreen(
@@ -105,6 +125,23 @@ class _ContactsScreenState extends State<ContactsScreen> {
       return;
     }
     if (mounted) _refresh();
+  }
+
+  Future<void> _refreshFriendRequestBadge() async {
+    try {
+      final count = await widget.api.unseenIncomingContactRequestCount();
+      if (mounted) {
+        setState(() {
+          _friendRequestBadge = count;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _friendRequestBadge = 0;
+        });
+      }
+    }
   }
 
   Future<void> _startChat(ChatUser friend) async {

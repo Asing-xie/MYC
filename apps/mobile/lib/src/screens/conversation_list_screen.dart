@@ -27,11 +27,13 @@ class ConversationListScreen extends StatefulWidget {
 class _ConversationListScreenState extends State<ConversationListScreen> {
   late Future<List<Conversation>> _future;
   StreamSubscription<ChatMessage>? _messageSub;
+  int _friendRequestBadge = 0;
 
   @override
   void initState() {
     super.initState();
     _future = widget.api.conversations();
+    _refreshFriendRequestBadge();
     _messageSub = widget.socket.messages.listen((_) {
       if (mounted) _refresh();
     });
@@ -56,7 +58,12 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
           ),
           TextButton.icon(
             onPressed: _openContacts,
-            icon: const Icon(Icons.contacts_outlined),
+            icon: _friendRequestBadge > 0
+                ? Badge(
+                    label: Text('$_friendRequestBadge'),
+                    child: const Icon(Icons.contacts_outlined),
+                  )
+                : const Icon(Icons.contacts_outlined),
             label: const Text('Contacts'),
           ),
           PopupMenuButton<String>(
@@ -74,6 +81,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
           setState(() {
             _future = widget.api.conversations();
           });
+          await _refreshFriendRequestBadge();
           await _future;
         },
         child: FutureBuilder<List<Conversation>>(
@@ -143,13 +151,33 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
         ),
       ),
     );
-    if (mounted) _refresh();
+    if (mounted) {
+      _refresh();
+      await _refreshFriendRequestBadge();
+    }
   }
 
   void _refresh() {
     setState(() {
       _future = widget.api.conversations();
     });
+  }
+
+  Future<void> _refreshFriendRequestBadge() async {
+    try {
+      final count = await widget.api.unseenIncomingContactRequestCount();
+      if (mounted) {
+        setState(() {
+          _friendRequestBadge = count;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _friendRequestBadge = 0;
+        });
+      }
+    }
   }
 
   Future<void> _openConversation(Conversation conversation) async {
@@ -163,6 +191,11 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
         ),
       ),
     );
+    try {
+      await widget.api.markConversationRead(conversation.id);
+    } catch (_) {
+      // ChatScreen also marks messages read; keep the list refresh best-effort.
+    }
     if (mounted) _refresh();
   }
 

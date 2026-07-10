@@ -68,11 +68,13 @@ export class ContactsService {
       throw new BadRequestException('Request is not pending');
     }
 
-    return this.prisma.contact.update({
+    const accepted = await this.prisma.contact.update({
       where: { id: contactId },
       data: { status: 'ACCEPTED' },
       include: this.includeUsers,
     });
+    await this.ensureDirectConversation(contact.requesterId, contact.addresseeId);
+    return accepted;
   }
 
   async reject(userId: string, contactId: string) {
@@ -94,5 +96,27 @@ export class ContactsService {
       throw new NotFoundException('Contact request not found');
     }
     return contact;
+  }
+
+  private async ensureDirectConversation(userAId: string, userBId: string) {
+    const existing = await this.prisma.conversation.findFirst({
+      where: {
+        type: 'DIRECT',
+        AND: [
+          { members: { some: { userId: userAId } } },
+          { members: { some: { userId: userBId } } },
+        ],
+      },
+    });
+    if (existing) return existing;
+
+    return this.prisma.conversation.create({
+      data: {
+        type: 'DIRECT',
+        members: {
+          create: [{ userId: userAId }, { userId: userBId }],
+        },
+      },
+    });
   }
 }

@@ -130,7 +130,18 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
   }
 
   Future<void> _accept(ContactRelation request) async {
-    await _runRequestAction(request.id, () => widget.api.acceptContactRequest(request.id), 'Accepted');
+    setState(() => _busyIds.add(request.id));
+    try {
+      await widget.api.acceptContactRequest(request.id);
+      final conversation = await widget.api.createDirectConversation(request.requester.id);
+      if (!mounted) return;
+      Navigator.of(context).pop(conversation);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _busyIds.remove(request.id));
+    }
   }
 
   Future<void> _reject(ContactRelation request) async {

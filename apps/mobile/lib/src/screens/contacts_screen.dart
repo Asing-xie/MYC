@@ -92,7 +92,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
   }
 
   Future<void> _openRequests() async {
-    await Navigator.of(context).push(
+    final conversation = await Navigator.of(context).push<Conversation>(
       MaterialPageRoute(
         builder: (_) => FriendRequestsScreen(
           api: widget.api,
@@ -100,6 +100,10 @@ class _ContactsScreenState extends State<ContactsScreen> {
         ),
       ),
     );
+    if (conversation != null && mounted) {
+      Navigator.of(context).pop(conversation);
+      return;
+    }
     if (mounted) _refresh();
   }
 

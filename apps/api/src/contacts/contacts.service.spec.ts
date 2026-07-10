@@ -13,6 +13,10 @@ describe('ContactsService', () => {
       update: jest.Mock;
       delete: jest.Mock;
     };
+    conversation: {
+      findFirst: jest.Mock;
+      create: jest.Mock;
+    };
   };
 
   const includeUsers = {
@@ -29,6 +33,10 @@ describe('ContactsService', () => {
         create: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
+      },
+      conversation: {
+        findFirst: jest.fn(),
+        create: jest.fn(),
       },
     };
     service = new ContactsService(prisma as unknown as PrismaService);
@@ -118,6 +126,8 @@ describe('ContactsService', () => {
       status: 'PENDING',
     });
     prisma.contact.update.mockResolvedValue({ id: 'contact-1', status: 'ACCEPTED' });
+    prisma.conversation.findFirst.mockResolvedValue(null);
+    prisma.conversation.create.mockResolvedValue({ id: 'conversation-1' });
 
     const contact = await service.accept('u2', 'contact-1');
 
@@ -127,6 +137,29 @@ describe('ContactsService', () => {
       data: { status: 'ACCEPTED' },
       include: includeUsers,
     });
+    expect(prisma.conversation.create).toHaveBeenCalledWith({
+      data: {
+        type: 'DIRECT',
+        members: {
+          create: [{ userId: 'u1' }, { userId: 'u2' }],
+        },
+      },
+    });
+  });
+
+  it('does not create a duplicate direct conversation when accepting a request', async () => {
+    prisma.contact.findUnique.mockResolvedValue({
+      id: 'contact-1',
+      requesterId: 'u1',
+      addresseeId: 'u2',
+      status: 'PENDING',
+    });
+    prisma.contact.update.mockResolvedValue({ id: 'contact-1', status: 'ACCEPTED' });
+    prisma.conversation.findFirst.mockResolvedValue({ id: 'conversation-1' });
+
+    await service.accept('u2', 'contact-1');
+
+    expect(prisma.conversation.create).not.toHaveBeenCalled();
   });
 
   it('rejects accept when the current user is not the addressee', async () => {

@@ -1,0 +1,22 @@
+node_modules
+dist
+coverage
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+* 2
+build
+.dart_tool
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+ios/Flutter/ephemeral/
+ios/Pods/
+android/.gradle/
+*.apk
+*.aab
+*.keystore
+*.jks
+key.properties

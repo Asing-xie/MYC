@@ -1,0 +1,21 @@
+{
+  "name": "mwc",
+  "version": "1.0.0",
+  "description": "Chat MVP monorepo",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "api:build": "npm --prefix apps/api run build",
+    "api:test": "npm --prefix apps/api test",
+    "api:start:dev": "npm --prefix apps/api run start:dev",
+    "api:prisma:generate": "npm --prefix apps/api run prisma:generate",
+    "api:prisma:migrate": "npm --prefix apps/api run prisma:migrate"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "commonjs"
+}

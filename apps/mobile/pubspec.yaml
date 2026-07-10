@@ -1,0 +1,27 @@
+name: mwc_chat
+description: Cross-platform chat MVP client.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  http: ^1.2.2
+  socket_io_client: ^2.0.3+1
+  flutter_secure_storage: ^9.2.2
+  image_picker: ^1.1.2
+  path_provider: ^2.1.6
+  record: ^7.1.1
+  just_audio: ^0.10.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true

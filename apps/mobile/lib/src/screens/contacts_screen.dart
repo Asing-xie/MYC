@@ -12,11 +12,13 @@ class ContactsScreen extends StatefulWidget {
     required this.api,
     required this.socket,
     required this.currentUser,
+    this.embedded = false,
   });
 
   final ApiClient api;
   final SocketService socket;
   final ChatUser currentUser;
+  final bool embedded;
 
   @override
   State<ContactsScreen> createState() => _ContactsScreenState();
@@ -35,68 +37,71 @@ class _ContactsScreenState extends State<ContactsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final body = RefreshIndicator(
+      onRefresh: _refresh,
+      child: FutureBuilder<List<ContactRelation>>(
+        future: _future,
+        builder: (context, snapshot) {
+          final contacts = snapshot.data ?? [];
+          return ListView.separated(
+            itemCount: contacts.length + 1,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return ListTile(
+                  leading: const CircleAvatar(child: Icon(Icons.person_add_alt_1)),
+                  title: const Text('New Friends'),
+                  subtitle: const Text('Friend requests'),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (_friendRequestBadge > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: Badge(label: Text('$_friendRequestBadge')),
+                        ),
+                      const Icon(Icons.chevron_right),
+                    ],
+                  ),
+                  onTap: _openRequests,
+                );
+              }
+              if (snapshot.connectionState != ConnectionState.done && contacts.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.only(top: 120),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (snapshot.hasError && contacts.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Center(child: Text(snapshot.error.toString())),
+                );
+              }
+              final relation = contacts[index - 1];
+              final friend = relation.friendFor(widget.currentUser.id);
+              return ListTile(
+                leading: GestureDetector(
+                  onTap: () => _openProfile(friend.id),
+                  child: CircleAvatar(
+                    backgroundImage: friend.avatarUrl == null ? null : NetworkImage(friend.avatarUrl!),
+                    child: friend.avatarUrl == null ? Text(friend.nickname.characters.first.toUpperCase()) : null,
+                  ),
+                ),
+                title: Text(friend.nickname),
+                subtitle: Text(friend.email ?? friend.phone ?? friend.id),
+                onTap: () => _startChat(friend),
+              );
+            },
+          );
+        },
+      ),
+    );
+    if (widget.embedded) return body;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Contacts')),
-      body: RefreshIndicator(
-        onRefresh: _refresh,
-        child: FutureBuilder<List<ContactRelation>>(
-          future: _future,
-          builder: (context, snapshot) {
-            final contacts = snapshot.data ?? [];
-            return ListView.separated(
-              itemCount: contacts.length + 1,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, index) {
-                if (index == 0) {
-                  return ListTile(
-                    leading: const CircleAvatar(child: Icon(Icons.person_add_alt_1)),
-                    title: const Text('New Friends'),
-                    subtitle: const Text('Friend requests'),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_friendRequestBadge > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 8),
-                            child: Badge(label: Text('$_friendRequestBadge')),
-                          ),
-                        const Icon(Icons.chevron_right),
-                      ],
-                    ),
-                    onTap: _openRequests,
-                  );
-                }
-                if (snapshot.connectionState != ConnectionState.done && contacts.isEmpty) {
-                  return const Padding(
-                    padding: EdgeInsets.only(top: 120),
-                    child: Center(child: CircularProgressIndicator()),
-                  );
-                }
-                if (snapshot.hasError && contacts.isEmpty) {
-                  return Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Center(child: Text(snapshot.error.toString())),
-                  );
-                }
-                final relation = contacts[index - 1];
-                final friend = relation.friendFor(widget.currentUser.id);
-                return ListTile(
-                  leading: GestureDetector(
-                    onTap: () => _openProfile(friend.id),
-                    child: CircleAvatar(
-                      backgroundImage: friend.avatarUrl == null ? null : NetworkImage(friend.avatarUrl!),
-                      child: friend.avatarUrl == null ? Text(friend.nickname.characters.first.toUpperCase()) : null,
-                    ),
-                  ),
-                  title: Text(friend.nickname),
-                  subtitle: Text(friend.email ?? friend.phone ?? friend.id),
-                  onTap: () => _startChat(friend),
-                );
-              },
-            );
-          },
-        ),
-      ),
+      body: body,
     );
   }
 
@@ -158,7 +163,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
           ),
         ),
       );
-      if (mounted) Navigator.of(context).pop(conversation);
+      if (mounted && !widget.embedded) Navigator.of(context).pop(conversation);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));

@@ -30,6 +30,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   final List<Conversation> _conversations = [];
   StreamSubscription<ChatMessage>? _messageSub;
   int _friendRequestBadge = 0;
+  int _tabIndex = 0;
   bool _initialLoading = true;
   String? _error;
 
@@ -52,49 +53,103 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Chats'),
-        actions: [
-          IconButton(
-            tooltip: 'Search users',
-            onPressed: _openSearch,
-            icon: const Icon(Icons.person_add_alt_1),
-          ),
-          IconButton(
-            tooltip: 'New group',
-            onPressed: _openCreateGroup,
-            icon: const Icon(Icons.group_add_outlined),
-          ),
-          TextButton.icon(
-            onPressed: _openContacts,
-            icon: _friendRequestBadge > 0
-                ? Badge(
-                    label: Text('$_friendRequestBadge'),
-                    child: const Icon(Icons.contacts_outlined),
-                  )
-                : const Icon(Icons.contacts_outlined),
-            label: const Text('Contacts'),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'profile') _openMyProfile();
-              if (value == 'logout') _logout();
+      appBar: _buildAppBar(),
+      body: IndexedStack(
+        index: _tabIndex,
+        children: [
+          RefreshIndicator(
+            onRefresh: () async {
+              await _loadConversations();
+              await _refreshFriendRequestBadge();
             },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'profile', child: Text('My Profile')),
-              PopupMenuItem(value: 'logout', child: Text('Logout')),
-            ],
+            child: _buildConversationList(),
+          ),
+          ContactsScreen(
+            api: widget.api,
+            socket: widget.socket,
+            currentUser: widget.currentUser,
+            embedded: true,
+          ),
+          const _DiscoverTab(),
+          ProfileScreen(
+            api: widget.api,
+            currentUser: widget.currentUser,
+            userId: widget.currentUser.id,
+            embedded: true,
           ),
         ],
       ),
-      body: RefreshIndicator(
-        onRefresh: () async {
-          await _loadConversations();
-          await _refreshFriendRequestBadge();
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _tabIndex,
+        onDestinationSelected: (index) async {
+          setState(() => _tabIndex = index);
+          if (index == 0) _refresh();
+          if (index == 1) await _refreshFriendRequestBadge();
         },
-        child: _buildConversationList(),
+        destinations: [
+          const NavigationDestination(
+            icon: Icon(Icons.chat_bubble_outline),
+            selectedIcon: Icon(Icons.chat_bubble),
+            label: '消息',
+          ),
+          NavigationDestination(
+            icon: _friendRequestBadge > 0
+                ? Badge(label: Text('$_friendRequestBadge'), child: const Icon(Icons.contacts_outlined))
+                : const Icon(Icons.contacts_outlined),
+            selectedIcon: _friendRequestBadge > 0
+                ? Badge(label: Text('$_friendRequestBadge'), child: const Icon(Icons.contacts))
+                : const Icon(Icons.contacts),
+            label: '通讯录',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.explore_outlined),
+            selectedIcon: Icon(Icons.explore),
+            label: '发现',
+          ),
+          const NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: '我',
+          ),
+        ],
       ),
     );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    switch (_tabIndex) {
+      case 1:
+        return AppBar(title: const Text('通讯录'));
+      case 2:
+        return AppBar(title: const Text('发现'));
+      case 3:
+        return AppBar(
+          title: const Text('我'),
+          actions: [
+            IconButton(
+              tooltip: 'Logout',
+              onPressed: _logout,
+              icon: const Icon(Icons.logout),
+            ),
+          ],
+        );
+      default:
+        return AppBar(
+          title: const Text('消息'),
+          actions: [
+            IconButton(
+              tooltip: 'Search users',
+              onPressed: _openSearch,
+              icon: const Icon(Icons.person_add_alt_1),
+            ),
+            IconButton(
+              tooltip: 'New group',
+              onPressed: _openCreateGroup,
+              icon: const Icon(Icons.group_add_outlined),
+            ),
+          ],
+        );
+    }
   }
 
   Widget _buildConversationList() {
@@ -155,23 +210,8 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
       ),
     );
     if (conversation != null && mounted) {
+      setState(() => _tabIndex = 0);
       _refresh();
-    }
-  }
-
-  Future<void> _openContacts() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ContactsScreen(
-          api: widget.api,
-          socket: widget.socket,
-          currentUser: widget.currentUser,
-        ),
-      ),
-    );
-    if (mounted) {
-      _refresh();
-      await _refreshFriendRequestBadge();
     }
   }
 
@@ -185,6 +225,7 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
       ),
     );
     if (conversation != null && mounted) {
+      setState(() => _tabIndex = 0);
       _refresh();
       await _openConversation(conversation);
     }
@@ -276,18 +317,6 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
     }
   }
 
-  Future<void> _openMyProfile() async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ProfileScreen(
-          api: widget.api,
-          currentUser: widget.currentUser,
-          userId: widget.currentUser.id,
-        ),
-      ),
-    );
-  }
-
   Future<void> _logout() async {
     await widget.api.logout();
     widget.socket.dispose();
@@ -301,6 +330,17 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
         ),
       ),
       (_) => false,
+    );
+  }
+}
+
+class _DiscoverTab extends StatelessWidget {
+  const _DiscoverTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text('发现'),
     );
   }
 }

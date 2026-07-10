@@ -10,11 +10,13 @@ class ProfileScreen extends StatefulWidget {
     required this.api,
     required this.currentUser,
     required this.userId,
+    this.embedded = false,
   });
 
   final ApiClient api;
   final ChatUser currentUser;
   final String userId;
+  final bool embedded;
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -39,38 +41,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final profile = _profile;
+    final body = _loading
+        ? const Center(child: CircularProgressIndicator())
+        : RefreshIndicator(
+            onRefresh: _load,
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
+              children: [
+                if (_error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                  ),
+                if (profile != null) _profileHeader(profile),
+                const SizedBox(height: 24),
+                _sectionTitle('Album'),
+                const SizedBox(height: 10),
+                if (_isMe)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: _saving ? null : _addAlbumImage,
+                      icon: const Icon(Icons.add_photo_alternate_outlined),
+                      label: const Text('Add Photo'),
+                    ),
+                  ),
+                const SizedBox(height: 12),
+                _albumGrid(),
+              ],
+            ),
+          );
+    if (widget.embedded) return body;
+
     return Scaffold(
       appBar: AppBar(title: Text(_isMe ? 'My Profile' : 'Profile')),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-                children: [
-                  if (_error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                    ),
-                  if (profile != null) _profileHeader(profile),
-                  const SizedBox(height: 24),
-                  _sectionTitle('Album'),
-                  const SizedBox(height: 10),
-                  if (_isMe)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: OutlinedButton.icon(
-                        onPressed: _saving ? null : _addAlbumImage,
-                        icon: const Icon(Icons.add_photo_alternate_outlined),
-                        label: const Text('Add Photo'),
-                      ),
-                    ),
-                  const SizedBox(height: 12),
-                  _albumGrid(),
-                ],
-              ),
-            ),
+      body: body,
     );
   }
 

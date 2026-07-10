@@ -28,6 +28,8 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
   bool _searched = false;
   String? _error;
   Timer? _debounce;
+  final Set<String> _busyUserIds = {};
+  final Set<String> _requestedUserIds = {};
 
   @override
   void dispose() {
@@ -98,6 +100,8 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
       separatorBuilder: (_, __) => const Divider(height: 1),
       itemBuilder: (context, index) {
         final user = _users[index];
+        final busy = _busyUserIds.contains(user.id);
+        final requested = _requestedUserIds.contains(user.id);
         return ListTile(
           leading: CircleAvatar(
             backgroundImage: user.avatarUrl == null ? null : NetworkImage(user.avatarUrl!),
@@ -106,11 +110,16 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
           title: Text(user.nickname),
           subtitle: Text(user.email ?? user.phone ?? user.id),
           trailing: IconButton(
-            tooltip: 'Add friend',
-            onPressed: _loading ? null : () => _addOrChat(user),
-            icon: const Icon(Icons.person_add_alt_1),
+            tooltip: requested ? 'Request sent' : 'Add friend',
+            onPressed: busy || requested ? null : () => _addOrChat(user),
+            icon: busy
+                ? const SizedBox.square(
+                    dimension: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Icon(requested ? Icons.check_circle_outline : Icons.person_add_alt_1),
           ),
-          onTap: _loading ? null : () => _addOrChat(user),
+          onTap: busy || requested ? null : () => _addOrChat(user),
         );
       },
     );
@@ -138,6 +147,8 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
       _users = [];
       _searched = false;
       _error = null;
+      _busyUserIds.clear();
+      _requestedUserIds.clear();
     });
   }
 
@@ -163,7 +174,7 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
 
   Future<void> _addOrChat(ChatUser user) async {
     setState(() {
-      _loading = true;
+      _busyUserIds.add(user.id);
       _error = null;
     });
     try {
@@ -174,13 +185,20 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
         final relation = await widget.api.sendContactRequest(user.id);
         if (!mounted) return;
         final message = relation.status == 'ACCEPTED' ? 'Already friends' : 'Friend request sent';
+        setState(() {
+          _requestedUserIds.add(user.id);
+        });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (error) {
       if (!mounted) return;
       setState(() => _error = error.toString());
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _busyUserIds.remove(user.id);
+        });
+      }
     }
   }
 

@@ -36,6 +36,37 @@ class ApiClient {
     return ChatUser.fromJson(data);
   }
 
+  Future<ChatUser> userProfile(String userId) async {
+    final data = await _get('/users/$userId') as Map<String, dynamic>;
+    return ChatUser.fromJson(data);
+  }
+
+  Future<ChatUser> updateProfile({
+    String? nickname,
+    String? avatarUrl,
+    String? signature,
+  }) async {
+    final data = await _patch('/users/me', {
+      if (nickname != null) 'nickname': nickname,
+      if (avatarUrl != null) 'avatarUrl': avatarUrl,
+      if (signature != null) 'signature': signature,
+    });
+    return ChatUser.fromJson(data);
+  }
+
+  Future<List<AlbumPhoto>> albumPhotos(String userId) async {
+    final data = await _get('/users/$userId/photos') as List<dynamic>;
+    return data.map((item) => AlbumPhoto.fromJson(item as Map<String, dynamic>)).toList();
+  }
+
+  Future<AlbumPhoto> addAlbumPhoto(String url, {String? caption}) async {
+    final data = await _post('/users/me/photos', {
+      'url': url,
+      if (caption != null) 'caption': caption,
+    });
+    return AlbumPhoto.fromJson(data);
+  }
+
   Future<List<ChatUser>> searchUsers(String query) async {
     final data = await _get('/users/search?q=${Uri.encodeQueryComponent(query)}') as List<dynamic>;
     return data.map((item) => ChatUser.fromJson(item as Map<String, dynamic>)).toList();
@@ -134,6 +165,15 @@ class ApiClient {
 
   Future<Map<String, dynamic>> _post(String path, Map<String, dynamic> body) async {
     final response = await http.post(
+      Uri.parse('$baseUrl$path'),
+      headers: await _headers(),
+      body: jsonEncode(body),
+    );
+    return _decode(response) as Map<String, dynamic>;
+  }
+
+  Future<Map<String, dynamic>> _patch(String path, Map<String, dynamic> body) async {
+    final response = await http.patch(
       Uri.parse('$baseUrl$path'),
       headers: await _headers(),
       body: jsonEncode(body),

@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { CurrentUser } from '../common/current-user.decorator';
 import type { AuthUser } from '../common/current-user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AddAlbumPhotoDto } from './dto/add-album-photo.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UsersService } from './users.service';
 
@@ -23,5 +24,20 @@ export class UsersController {
   @Get('search')
   search(@CurrentUser() user: AuthUser, @Query('q') query = '') {
     return this.usersService.search(query, user.id);
+  }
+
+  @Get(':id')
+  profile(@Param('id') id: string) {
+    return this.usersService.profile(id);
+  }
+
+  @Get(':id/photos')
+  albumPhotos(@Param('id') id: string) {
+    return this.usersService.albumPhotos(id);
+  }
+
+  @Post('me/photos')
+  addAlbumPhoto(@CurrentUser() user: AuthUser, @Body() dto: AddAlbumPhotoDto) {
+    return this.usersService.addAlbumPhoto(user.id, dto);
   }
 }

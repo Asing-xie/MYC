@@ -40,6 +40,7 @@ model User {
   passwordHash String
   nickname     String
   avatarUrl    String?
+  signature    String?
   role         UserRole @default(USER)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -50,6 +51,19 @@ model User {
   messages         Message[]
   receipts         MessageReceipt[]
   attachments      Attachment[]
+  albumPhotos      UserAlbumPhoto[]
+}
+
+model UserAlbumPhoto {
+  id        String   @id @default(cuid())
+  ownerId   String
+  url       String
+  caption   String?
+  createdAt DateTime @default(now())
+
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([ownerId, createdAt])
 }
 
 model Contact {

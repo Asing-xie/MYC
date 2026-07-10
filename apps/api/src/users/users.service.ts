@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { AddAlbumPhotoDto } from './dto/add-album-photo.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
@@ -7,6 +8,10 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   async me(userId: string) {
+    return this.profile(userId);
+  }
+
+  async profile(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: this.safeSelect(),
@@ -20,8 +25,27 @@ export class UsersService {
       data: {
         nickname: dto.nickname,
         avatarUrl: dto.avatarUrl,
+        signature: dto.signature,
       },
       select: this.safeSelect(),
+    });
+  }
+
+  async albumPhotos(userId: string) {
+    return this.prisma.userAlbumPhoto.findMany({
+      where: { ownerId: userId },
+      orderBy: { createdAt: 'desc' },
+      take: 60,
+    });
+  }
+
+  async addAlbumPhoto(userId: string, dto: AddAlbumPhotoDto) {
+    return this.prisma.userAlbumPhoto.create({
+      data: {
+        ownerId: userId,
+        url: dto.url,
+        caption: dto.caption,
+      },
     });
   }
 
@@ -52,6 +76,7 @@ export class UsersService {
       phone: true,
       nickname: true,
       avatarUrl: true,
+      signature: true,
       role: true,
       createdAt: true,
       updatedAt: true,

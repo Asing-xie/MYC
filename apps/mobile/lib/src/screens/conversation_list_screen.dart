@@ -6,6 +6,7 @@ import '../services/api_client.dart';
 import '../services/socket_service.dart';
 import 'chat_screen.dart';
 import 'contacts_screen.dart';
+import 'profile_screen.dart';
 import 'user_search_screen.dart';
 
 class ConversationListScreen extends StatefulWidget {
@@ -70,9 +71,11 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
           ),
           PopupMenuButton<String>(
             onSelected: (value) {
+              if (value == 'profile') _openMyProfile();
               if (value == 'logout') _logout();
             },
             itemBuilder: (context) => const [
+              PopupMenuItem(value: 'profile', child: Text('My Profile')),
               PopupMenuItem(value: 'logout', child: Text('Logout')),
             ],
           ),
@@ -240,6 +243,18 @@ class _ConversationListScreenState extends State<ConversationListScreen> {
       _removeUnreadFor(conversation.id);
       _refresh();
     }
+  }
+
+  Future<void> _openMyProfile() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(
+          api: widget.api,
+          currentUser: widget.currentUser,
+          userId: widget.currentUser.id,
+        ),
+      ),
+    );
   }
 
   Future<void> _logout() async {

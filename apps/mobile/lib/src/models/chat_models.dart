@@ -5,6 +5,7 @@ class ChatUser {
     this.email,
     this.phone,
     this.avatarUrl,
+    this.signature,
     this.role = 'USER',
   });
 
@@ -13,6 +14,7 @@ class ChatUser {
   final String? email;
   final String? phone;
   final String? avatarUrl;
+  final String? signature;
   final String role;
 
   factory ChatUser.fromJson(Map<String, dynamic> json) {
@@ -22,11 +24,35 @@ class ChatUser {
       email: json['email'] as String?,
       phone: json['phone'] as String?,
       avatarUrl: json['avatarUrl'] as String?,
+      signature: json['signature'] as String?,
       role: json['role'] as String? ?? 'USER',
     );
   }
 
   bool get isGm => role == 'GM';
+}
+
+class AlbumPhoto {
+  AlbumPhoto({
+    required this.id,
+    required this.url,
+    this.caption,
+    required this.createdAt,
+  });
+
+  final String id;
+  final String url;
+  final String? caption;
+  final DateTime createdAt;
+
+  factory AlbumPhoto.fromJson(Map<String, dynamic> json) {
+    return AlbumPhoto(
+      id: json['id'] as String,
+      url: json['url'] as String,
+      caption: json['caption'] as String?,
+      createdAt: DateTime.parse(json['createdAt'] as String),
+    );
+  }
 }
 
 class Conversation {

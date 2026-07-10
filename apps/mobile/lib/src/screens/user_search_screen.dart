@@ -4,6 +4,7 @@ import '../models/chat_models.dart';
 import '../services/api_client.dart';
 import '../services/socket_service.dart';
 import 'chat_screen.dart';
+import 'profile_screen.dart';
 
 class UserSearchScreen extends StatefulWidget {
   const UserSearchScreen({
@@ -103,9 +104,12 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
         final busy = _busyUserIds.contains(user.id);
         final requested = _requestedUserIds.contains(user.id);
         return ListTile(
-          leading: CircleAvatar(
-            backgroundImage: user.avatarUrl == null ? null : NetworkImage(user.avatarUrl!),
-            child: user.avatarUrl == null ? Text(user.nickname.characters.first.toUpperCase()) : null,
+          leading: GestureDetector(
+            onTap: () => _openProfile(user.id),
+            child: CircleAvatar(
+              backgroundImage: user.avatarUrl == null ? null : NetworkImage(user.avatarUrl!),
+              child: user.avatarUrl == null ? Text(user.nickname.characters.first.toUpperCase()) : null,
+            ),
           ),
           title: Text(user.nickname),
           subtitle: Text(user.email ?? user.phone ?? user.id),
@@ -215,5 +219,17 @@ class _UserSearchScreenState extends State<UserSearchScreen> {
       ),
     );
     if (mounted) Navigator.of(context).pop(conversation);
+  }
+
+  Future<void> _openProfile(String userId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(
+          api: widget.api,
+          currentUser: widget.currentUser,
+          userId: userId,
+        ),
+      ),
+    );
   }
 }

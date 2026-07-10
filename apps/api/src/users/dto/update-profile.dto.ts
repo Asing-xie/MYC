@@ -8,4 +8,8 @@ export class UpdateProfileDto {
   @IsOptional()
   @IsUrl({ require_tld: false })
   avatarUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  signature?: string;
 }

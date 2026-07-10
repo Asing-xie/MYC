@@ -9,6 +9,7 @@ import '../models/chat_models.dart';
 import '../services/api_client.dart';
 import '../services/message_merge.dart';
 import '../services/socket_service.dart';
+import 'profile_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({
@@ -98,8 +99,27 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final peer = widget.conversation.peerFor(widget.currentUser.id);
     return Scaffold(
-      appBar: AppBar(title: Text(widget.conversation.peerFor(widget.currentUser.id)?.nickname ?? 'Chat')),
+      appBar: AppBar(
+        title: InkWell(
+          onTap: peer == null ? null : () => _openProfile(peer.id),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (peer != null) ...[
+                CircleAvatar(
+                  radius: 16,
+                  backgroundImage: peer.avatarUrl == null ? null : NetworkImage(peer.avatarUrl!),
+                  child: peer.avatarUrl == null ? Text(peer.nickname.characters.first.toUpperCase()) : null,
+                ),
+                const SizedBox(width: 8),
+              ],
+              Flexible(child: Text(peer?.nickname ?? 'Chat')),
+            ],
+          ),
+        ),
+      ),
       body: Column(
         children: [
           Expanded(
@@ -111,38 +131,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemBuilder: (context, index) {
                       final message = _messages[index];
                       final mine = message.senderId == widget.currentUser.id;
-                      return Align(
-                        alignment: mine ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          constraints: const BoxConstraints(maxWidth: 280),
-                          decoration: BoxDecoration(
-                            color: mine ? Theme.of(context).colorScheme.primaryContainer : Colors.grey.shade200,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              _messageBody(message),
-                              if (_pendingMessageIds.contains(message.id) || _failedMessageIds.contains(message.id))
-                                Padding(
-                                  padding: const EdgeInsets.only(top: 4),
-                                  child: Text(
-                                    _failedMessageIds.contains(message.id) ? '发送失败' : '发送中...',
-                                    style: TextStyle(
-                                      color: _failedMessageIds.contains(message.id)
-                                          ? Theme.of(context).colorScheme.error
-                                          : Colors.grey.shade700,
-                                      fontSize: 11,
-                                    ),
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
+                      return _messageRow(message, mine);
                     },
                   ),
           ),
@@ -211,6 +200,54 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Widget _messageRow(ChatMessage message, bool mine) {
+    final sender = _userFor(message.senderId);
+    final avatar = GestureDetector(
+      onTap: () => _openProfile(message.senderId),
+      child: CircleAvatar(
+        radius: 16,
+        backgroundImage: sender?.avatarUrl == null ? null : NetworkImage(sender!.avatarUrl!),
+        child: sender?.avatarUrl == null ? Text((sender?.nickname ?? '?').characters.first.toUpperCase()) : null,
+      ),
+    );
+    final bubble = Container(
+      margin: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      constraints: const BoxConstraints(maxWidth: 280),
+      decoration: BoxDecoration(
+        color: mine ? Theme.of(context).colorScheme.primaryContainer : Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: mine ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _messageBody(message),
+          if (_pendingMessageIds.contains(message.id) || _failedMessageIds.contains(message.id))
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _failedMessageIds.contains(message.id) ? '发送失败' : '发送中...',
+                style: TextStyle(
+                  color: _failedMessageIds.contains(message.id)
+                      ? Theme.of(context).colorScheme.error
+                      : Colors.grey.shade700,
+                  fontSize: 11,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+    return Row(
+      mainAxisAlignment: mine ? MainAxisAlignment.end : MainAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: mine
+          ? [bubble, const SizedBox(width: 8), avatar]
+          : [avatar, const SizedBox(width: 8), bubble],
+    );
+  }
+
   Widget _messageBody(ChatMessage message) {
     if (message.type == 'IMAGE' && message.content != null) {
       return ClipRRect(
@@ -245,6 +282,26 @@ class _ChatScreenState extends State<ChatScreen> {
     if (content.isEmpty) return;
     _text.clear();
     await _sendTyped('TEXT', content);
+  }
+
+  ChatUser? _userFor(String userId) {
+    if (widget.currentUser.id == userId) return widget.currentUser;
+    for (final member in widget.conversation.members) {
+      if (member.id == userId) return member;
+    }
+    return null;
+  }
+
+  Future<void> _openProfile(String userId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(
+          api: widget.api,
+          currentUser: widget.currentUser,
+          userId: userId,
+        ),
+      ),
+    );
   }
 
   Future<void> _sendTyped(String type, String content) async {

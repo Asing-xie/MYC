@@ -4,6 +4,7 @@ import '../services/api_client.dart';
 import '../services/socket_service.dart';
 import 'chat_screen.dart';
 import 'friend_requests_screen.dart';
+import 'profile_screen.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({
@@ -80,9 +81,12 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 final relation = contacts[index - 1];
                 final friend = relation.friendFor(widget.currentUser.id);
                 return ListTile(
-                  leading: CircleAvatar(
-                    backgroundImage: friend.avatarUrl == null ? null : NetworkImage(friend.avatarUrl!),
-                    child: friend.avatarUrl == null ? Text(friend.nickname.characters.first.toUpperCase()) : null,
+                  leading: GestureDetector(
+                    onTap: () => _openProfile(friend.id),
+                    child: CircleAvatar(
+                      backgroundImage: friend.avatarUrl == null ? null : NetworkImage(friend.avatarUrl!),
+                      child: friend.avatarUrl == null ? Text(friend.nickname.characters.first.toUpperCase()) : null,
+                    ),
                   ),
                   title: Text(friend.nickname),
                   subtitle: Text(friend.email ?? friend.phone ?? friend.id),
@@ -159,5 +163,18 @@ class _ContactsScreenState extends State<ContactsScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
     }
+  }
+
+  Future<void> _openProfile(String userId) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ProfileScreen(
+          api: widget.api,
+          currentUser: widget.currentUser,
+          userId: userId,
+        ),
+      ),
+    );
+    if (mounted) _refresh();
   }
 }
